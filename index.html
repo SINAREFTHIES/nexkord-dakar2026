@@ -512,8 +512,99 @@ body{
 
 /* ── MAP ── */
 .map-dark{background:var(--mapbg)!important}
+
+/* ══════════════════════════════════════════════
+   MODE TERRAIN — Interface secouriste mobile
+══════════════════════════════════════════════ */
+#terrain-shell{
+  display:none;height:100vh;background:var(--bg);
+  flex-direction:column;overflow:hidden;
+  font-family:var(--font);color:var(--text);
+}
+#terrain-shell.show{display:flex}
+.t-header{
+  background:var(--bg2);border-bottom:2px solid var(--g3);
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;position:relative;overflow:hidden;
+}
+.t-header::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:repeating-linear-gradient(90deg,var(--g3) 0,var(--g3) 14px,var(--gold) 14px,var(--gold) 28px,var(--red) 28px,var(--red) 42px,rgba(255,255,255,.1) 42px,rgba(255,255,255,.1) 56px);
+  animation:kente 3s linear infinite;
+}
+.t-body{flex:1;overflow-y:auto;padding:14px}
+.t-btn-primary{
+  width:100%;padding:20px;border:none;border-radius:14px;
+  background:linear-gradient(135deg,#CC2A1E,#FF5449);
+  color:#fff;font-family:var(--font);font-size:17px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  gap:12px;letter-spacing:.5px;transition:all .2s;
+  box-shadow:0 4px 20px rgba(204,42,30,.35);
+}
+.t-btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(204,42,30,.45)}
+.t-btn-primary:active{transform:translateY(0)}
+.t-btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.t-btn-sec{
+  padding:16px 10px;border:1px solid var(--br);border-radius:12px;
+  background:var(--glass);color:var(--text);font-family:var(--font);
+  font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  transition:all .2s;
+}
+.t-btn-sec:hover{background:var(--bg3);border-color:var(--g2)}
+.t-btn-sec i{font-size:22px}
+.t-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px}
+.t-signal-card{
+  padding:12px 14px;border-radius:10px;margin-bottom:8px;
+  border-left:3px solid var(--accent,var(--red2));
+  background:var(--glass);border-top:1px solid var(--glassborder);
+  border-right:1px solid var(--glassborder);border-bottom:1px solid var(--glassborder);
+}
+.t-num-card{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-radius:10px;background:var(--glass);border:1px solid var(--glassborder);
+  margin-bottom:6px;cursor:pointer;transition:background .15s;
+}
+.t-num-card:hover{background:var(--bg3)}
+.t-num-big{font-family:var(--mono);font-size:22px;font-weight:700;min-width:60px}
+.t-admin-toggle{
+  padding:8px 14px;background:var(--s1);border:1px solid var(--br);
+  border-radius:8px;color:var(--muted);font-family:var(--font);font-size:10px;
+  cursor:pointer;border:none;display:flex;align-items:center;gap:5px;
+}
+/* Terrain nav bar bottom */
+.t-nav{
+  background:var(--bg2);border-top:1px solid var(--br);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px 0;flex-shrink:0;
+}
+.t-nav-btn{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 4px;border:none;background:transparent;cursor:pointer;
+  color:var(--subtle);font-family:var(--font);font-size:10px;font-weight:500;
+  transition:color .15s;
+}
+.t-nav-btn.on{color:var(--g2)}
+.t-nav-btn i{font-size:20px}
+/* GPS status bar */
+.t-gps-bar{
+  padding:8px 12px;border-radius:8px;margin-bottom:10px;
+  border:1px solid rgba(0,194,98,.25);background:rgba(0,194,98,.06);
+  display:flex;align-items:center;gap:8px;font-size:11px;color:var(--g2);
+}
+/* COUS OPS CENTER */
+.cous-ops{display:grid;grid-template-columns:1fr 1fr 320px;gap:10px}
+.cous-svc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 13px}
+.cous-svc-card{
+  padding:10px 12px;border-radius:9px;background:var(--kpi-bg);
+  border:1px solid var(--glassborder);text-align:center;
+  transition:transform .15s;cursor:pointer;
+}
+.cous-svc-card:hover{transform:translateY(-1px);background:var(--bg3)}
+[data-theme="light"] .cous-svc-card{background:#FFFFFF}
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -665,7 +756,7 @@ body{
     <button class="mb" id="btn-heat" onclick="nav('heat')"><span class="mb-code" style="color:var(--gold)">HEAT</span><span class="mb-lbl">Protocole WBGT</span></button>
     <button class="mb" id="btn-nexcom" onclick="nav('nexcom')"><span class="mb-code" style="color:var(--purple)">COM</span><span class="mb-lbl">Communication Crise</span></button>
     <button class="mb" id="btn-pharma" onclick="nav('pharma')"><span class="mb-code" style="color:var(--g2)">PHM</span><span class="mb-lbl">Stock Medicaments</span></button>
-    <button class="mb" id="btn-accesso" onclick="nav('accesso')"><span class="mb-code" style="color:var(--teal)">ACC</span><span class="mb-lbl">Accessibilite PMR</span></button>
+    <button class="mb" id="btn-accesso" onclick="nav('acc')"><span class="mb-code" style="color:var(--teal)">ACC</span><span class="mb-lbl">Accessibilite PMR</span></button>
     <button class="mb" id="btn-cyber" onclick="nav('cyber')"><span class="mb-code" style="color:#378ADD">SOC</span><span class="mb-lbl">Cybersecu SOC</span></button>
     <button class="mb" id="btn-evacia" onclick="nav('evacia')"><span class="mb-code" style="color:var(--g2)">EVC</span><span class="mb-lbl">Evacuation IA</span></button>
     <div class="sb-sec">STRATEGIE</div>
@@ -693,11 +784,694 @@ body{
 </div>
 <div id="toast"></div>
 
+<!-- ══════════════════════════════════════════
+     TERRAIN SHELL — Interface secouriste
+══════════════════════════════════════════ -->
+<div id="terrain-shell">
+  <!-- Header -->
+  <div class="t-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,145,77,.2);border:1px solid rgba(0,194,98,.3);display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-shield-heart" style="font-size:18px;color:var(--g2)" aria-hidden="true"></i>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text)">NEX<span style="color:var(--g2)">KORD</span> Terrain</div>
+        <div id="t-role-label" style="font-size:10px;color:var(--muted);font-family:var(--mono)">SECOURISTE · DAKAR</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="live-badge"><span class="dot-live"></span>EN LIGNE</div>
+      <div class="clock" id="tClk" style="font-size:11px">--:--</div>
+      <button class="t-admin-toggle" onclick="switchToAdmin()" title="Vue administration">
+        <i class="ti ti-layout-dashboard" style="font-size:12px" aria-hidden="true"></i> Admin
+      </button>
+      <button onclick="doLogout()" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:15px" title="Déconnexion" aria-label="Déconnexion">&#x23FB;</button>
+    </div>
+  </div>
+
+  <!-- Body (rendered by JS) -->
+  <div id="terrain-body" class="t-body"></div>
+
+  <!-- Nav bottom -->
+  <nav class="t-nav" id="t-nav">
+    <button class="t-nav-btn on" id="tnav-signal" onclick="navTerrain('signal')">
+      <i class="ti ti-alert-triangle" aria-hidden="true"></i>Signaler
+    </button>
+    <button class="t-nav-btn" id="tnav-mes" onclick="navTerrain('mes')">
+      <i class="ti ti-map-pin" aria-hidden="true"></i>Mes signaux
+    </button>
+    <button class="t-nav-btn" id="tnav-urgences" onclick="navTerrain('urgences')">
+      <i class="ti ti-phone" aria-hidden="true"></i>Urgences
+    </button>
+    <button class="t-nav-btn" id="tnav-profil" onclick="navTerrain('profil')">
+      <i class="ti ti-user" aria-hidden="true"></i>Profil
+    </button>
+  </nav>
+</div>
+
 <script>
-/* ═══════════════════════════════════════════════════════
-   NEXKORD TERANGA — Core JS
-   Connects beautiful shell to all 28 modules
-═══════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   NEXKORD v5 — Configuration Supabase
+   ➤ Remplacez les valeurs ci-dessous par votre projet Supabase
+   ➤ Supabase.com > Votre projet > Settings > API
+   ➤ Si non configuré, l'app fonctionne en mode démo (données JS)
+═══════════════════════════════════════════════════════════════ */
+var SUPABASE_URL    = 'REPLACE_WITH_YOUR_SUPABASE_URL';
+var SUPABASE_ANON   = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY';
+var db = null;
+var dbReady = false;
+var currentUser = null;
+
+/* ── Initialisation Supabase ── */
+function initSupabase(){
+  if(typeof supabase === 'undefined') return false;
+  if(SUPABASE_URL === 'REPLACE_WITH_YOUR_SUPABASE_URL') return false;
+  try{
+    db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    dbReady = true;
+    console.log('[NEXKORD] ✅ Supabase connecté');
+    setupRealtime();
+    return true;
+  }catch(e){
+    console.warn('[NEXKORD] Supabase init failed, mode démo:', e.message);
+    return false;
+  }
+}
+
+/* ── Realtime : synchronisation multi-utilisateurs ── */
+function setupRealtime(){
+  if(!dbReady) return;
+
+  /* SAP Signals → MAJ instantanée sur tous les dashboards */
+  db.channel('rt_sap').on('postgres_changes',
+    {event:'*', schema:'public', table:'sap_signals'},
+    function(payload){
+      loadSapSignals();
+      if(payload.eventType==='INSERT'){
+        var sig=payload.new;
+        var gc={critique:'#FF5449',urgent:'#FB923C',modere:'#FBBF24',leger:'#4ADE80'};
+        var c=gc[sig.gravite]||'#64748B';
+        toast((sig.gravite==='critique'?'🚨 ':'📍 ')+'Signal '+sig.gravite.toUpperCase()+': '+sig.axe,c);
+        addAdminLog('SAP','[REALTIME] Nouveau signal: '+sig.type+' — '+sig.axe);
+      }
+    }
+  ).subscribe();
+
+  /* COUS Incidents */
+  db.channel('rt_cous').on('postgres_changes',
+    {event:'*', schema:'public', table:'cous_incidents'},
+    function(payload){
+      loadCousIncidents();
+      if(payload.eventType==='INSERT'&&payload.new.gravite==='critique'){
+        toast('🚨 Incident critique COUS: '+payload.new.lieu,'#FF5449');
+      }
+      if(curMod==='cous') setTimeout(function(){nav('cous');},200);
+    }
+  ).subscribe();
+
+  /* Lits Hospitaliers */
+  db.channel('rt_lits').on('postgres_changes',
+    {event:'*', schema:'public', table:'lits_services'},
+    function(payload){
+      loadLitsData();
+      if(payload.new && payload.new.disponibles < 2 && payload.new.service==='Urgences'){
+        toast('⚠ Lits URGENCES: '+payload.new.hopital_nom+' — '+payload.new.disponibles+' restants','#FF5449');
+      }
+      if(curMod==='lit') setTimeout(function(){nav('lit');},200);
+    }
+  ).subscribe();
+
+  /* Poches de sang */
+  db.channel('rt_sang').on('postgres_changes',
+    {event:'*', schema:'public', table:'sang_stocks'},
+    function(payload){
+      loadSangData();
+      if(payload.new && payload.new.stock < payload.new.seuil_alerte){
+        toast('🩸 Sang critique: '+payload.new.centre_nom+' '+payload.new.groupe,'#FF5449');
+      }
+      if(curMod==='sang') setTimeout(function(){nav('sang');},200);
+    }
+  ).subscribe();
+
+  /* Ambulances GPS */
+  db.channel('rt_amb').on('postgres_changes',
+    {event:'*', schema:'public', table:'ambulances'},
+    function(){
+      loadAmbData();
+      if(curMod==='amb') setTimeout(function(){nav('amb');},200);
+    }
+  ).subscribe();
+
+  /* Urgences ORSEC */
+  db.channel('rt_urgences').on('postgres_changes',
+    {event:'*', schema:'public', table:'urgences'},
+    function(payload){
+      loadUrgences();
+      if(payload.eventType==='INSERT'&&payload.new.criticite==='P1'){
+        toast('🆘 ALERTE P1: '+payload.new.titre,'#FF5449');
+      }
+    }
+  ).subscribe();
+
+  console.log('[NEXKORD] ✅ Realtime activé sur 6 canaux');
+}
+
+/* ══════════════════════════════════════════════
+   FONCTIONS DE CHARGEMENT (DB → variables JS)
+══════════════════════════════════════════════ */
+
+async function loadAllData(){
+  if(!dbReady) return;
+  try{
+    await Promise.all([
+      loadSapSignals(),
+      loadCousIncidents(),
+      loadCousAlertes(),
+      loadLitsData(),
+      loadSangData(),
+      loadAmbData(),
+      loadServices(),
+      loadUrgences(),
+      loadAccreditations(),
+    ]);
+    console.log('[NEXKORD] ✅ Toutes les données chargées depuis Supabase');
+    /* Rafraîchir la vue courante */
+    if(curMod) nav(curMod);
+  }catch(e){
+    console.error('[NEXKORD] Erreur chargement données:', e);
+    toast('Connexion Supabase échouée — mode démo actif','#FB923C');
+    dbReady = false;
+  }
+}
+
+async function loadSapSignals(){
+  if(!dbReady) return;
+  var res = await db.from('sap_signals')
+    .select('*, profiles(nom)')
+    .order('created_at',{ascending:false})
+    .limit(100);
+  if(res.error){console.error('SAP signals:', res.error.message); return;}
+  sapSignals = (res.data||[]).map(function(s){
+    return {
+      id: s.code || ('SIG-'+s.id.slice(0,6).toUpperCase()),
+      axe: s.axe + (s.lieu_detail?' — '+s.lieu_detail:''),
+      type: s.type,
+      victimes: s.victimes||0,
+      gravite: s.gravite,
+      signaleur: (s.profiles&&s.profiles.nom)||'Inconnu',
+      t: new Date(s.created_at).toTimeString().slice(0,5),
+      st: s.statut||'actif',
+      coord: s.lat ? s.lat.toFixed(4)+'N '+s.lon.toFixed(4)+'O' : '--',
+      region: s.region||'Dakar',
+      _db_id: s.id
+    };
+  });
+}
+
+async function loadCousIncidents(){
+  if(!dbReady) return;
+  var res = await db.from('cous_incidents')
+    .select('*')
+    .order('created_at',{ascending:false});
+  if(res.error){console.error('COUS incidents:', res.error.message); return;}
+  cousIncidents = (res.data||[]).map(function(c){
+    return {
+      id: c.code || ('COUS-'+c.id.slice(0,6).toUpperCase()),
+      type: c.type,
+      lieu: c.lieu,
+      gravite: c.gravite,
+      st: c.statut,
+      equipes: c.equipes||['—'],
+      t: new Date(c.created_at).toTimeString().slice(0,5),
+      _db_id: c.id
+    };
+  });
+}
+
+async function loadCousAlertes(){
+  if(!dbReady) return;
+  var res = await db.from('cous_alertes')
+    .select('*')
+    .eq('actif',true)
+    .order('created_at',{ascending:false})
+    .limit(10);
+  if(res.error) return;
+  cousAlerts = (res.data||[]).map(function(a){
+    return {
+      t: new Date(a.created_at).toTimeString().slice(0,5),
+      type: a.type,
+      msg: a.message,
+      c: a.couleur||'#ef4444'
+    };
+  });
+}
+
+async function loadLitsData(){
+  if(!dbReady) return;
+  var res = await db.from('lits_services')
+    .select('*')
+    .order('hopital_nom')
+    .order('service');
+  if(res.error){console.error('Lits:', res.error.message); return;}
+  var grouped={};
+  (res.data||[]).forEach(function(row){
+    if(!grouped[row.hopital_id]){
+      grouped[row.hopital_id]={id:row.hopital_id,nom:row.hopital_nom,region:row.region||'Dakar',services:[]};
+    }
+    var p=row.disponibles/row.total;
+    var c=p<.15?'#ef4444':p<.3?'#f97316':p<.5?'#eab308':'#10b981';
+    grouped[row.hopital_id].services.push({s:row.service,total:row.total,dispo:row.disponibles,c:c,_row_id:row.id});
+  });
+  litsData=Object.values(grouped);
+}
+
+async function loadSangData(){
+  if(!dbReady) return;
+  var res = await db.from('sang_stocks')
+    .select('*')
+    .order('centre_nom')
+    .order('groupe');
+  if(res.error){console.error('Sang:', res.error.message); return;}
+  var grouped={};
+  (res.data||[]).forEach(function(row){
+    if(!grouped[row.centre_id]){
+      grouped[row.centre_id]={id:row.centre_id,nom:row.centre_nom,type:row.type_centre,groupes:{}};
+    }
+    grouped[row.centre_id].groupes[row.groupe]={stock:row.stock,seuil:row.seuil_alerte,demandes:row.demandes||0,_row_id:row.id};
+  });
+  sangData=Object.values(grouped);
+}
+
+async function loadAmbData(){
+  if(!dbReady) return;
+  var res = await db.from('ambulances')
+    .select('*')
+    .order('id');
+  if(res.error){console.error('Ambulances:', res.error.message); return;}
+  var cols={samu:'#ef4444',smur:'#f97316',pompiers:'#f59e0b',croix_rouge:'#10b981'};
+  ambData=(res.data||[]).map(function(a){
+    var coords={samu:{x:148,y:120},smur:{x:106,y:162},pompiers:{x:192,y:100},croix_rouge:{x:294,y:122}};
+    var base=cols[a.type]||'#64748b';
+    var cx=(a.lon&&a.lat)?Math.max(20,Math.min(340,Math.round(160+(a.lon-(-17.450))*780))):coords[a.type]?.x||150;
+    var cy=(a.lon&&a.lat)?Math.max(20,Math.min(230,Math.round(110-(a.lat-14.693)*850))):coords[a.type]?.y||120;
+    return {id:a.id,nom:a.nom,type:a.type,sector:a.secteur||'Dakar',x:cx,y:cy,bat:a.batterie||100,st:a.statut,km:a.km_total||0,eqp:a.equipement||'BLS',_lat:a.lat,_lon:a.lon};
+  });
+}
+
+async function loadServices(){
+  if(!dbReady) return;
+  var res = await db.from('services_urgence').select('*').order('id');
+  if(res.error) return;
+  services=(res.data||[]).map(function(s){return {id:s.id,nom:s.nom,type:s.type,tel:s.telephone,statut:s.statut,site:s.site,agents:s.agents};});
+}
+
+async function loadUrgences(){
+  if(!dbReady) return;
+  var res = await db.from('urgences').select('*').neq('statut','resolu').order('created_at',{ascending:false}).limit(50);
+  if(res.error) return;
+  urgences=(res.data||[]).map(function(u){return {id:u.id,titre:u.titre,lieu:u.lieu,crit:u.criticite,st:u.statut};});
+}
+
+async function loadAccreditations(){
+  if(!dbReady) return;
+  var res = await db.from('accreditations').select('*').order('id');
+  if(res.error) return;
+  accs=(res.data||[]).map(function(a){return {id:a.id,name:a.nom,country:a.pays,cat:a.categorie,sport:a.sport||'—',st:a.statut};});
+}
+
+/* ══════════════════════════════════════════════
+   FONCTIONS D'ÉCRITURE (client → Supabase)
+══════════════════════════════════════════════ */
+
+/* Log d'audit vers la DB */
+async function dbLog(source,message,module){
+  if(!dbReady||!currentUser) return;
+  await db.rpc('log_action',{p_source:source,p_message:message,p_module:module||curMod});
+}
+
+/* SAP Signal */
+var _origSaveSignal = null;
+async function saveSignalDB(){
+  var axe=(eid('chapAxe')||{}).value||'';
+  var type=(eid('chapType')||{}).value||'CHOC_GRAVE';
+  var vict=parseInt((eid('chapVict')||{}).value)||0;
+  var grav=(eid('chapGrav')||{}).value||'critique';
+  var lieu=((eid('chapLieu')||{}).value||'').trim();
+  if(!axe){toast('Axe obligatoire','#FF5449');return;}
+  if(dbReady){
+    var res=await db.from('sap_signals').insert({
+      type:type, axe:axe, lieu_detail:lieu||null, victimes:vict, gravite:grav,
+      lat:sapGpsCoords?sapGpsCoords.lat:null, lon:sapGpsCoords?sapGpsCoords.lon:null,
+      precision_m:sapGpsCoords?sapGpsCoords.acc:null, region:sapZone,
+      signaleur_id:currentUser?currentUser.id:null
+    });
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    simulateNotifDests(type.indexOf('INCENDIE')>=0?'INCENDIE':type==='NOYADE'?'NOYADE':'ACCIDENT',axe);
+    toast('Signal envoyé! Services alertés.','#4ADE80');
+    closeModal(); nav('sap');
+  } else {
+    /* Fallback mode démo */
+    sapSignals.unshift({id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' — '+lieu:''),type:type,victimes:vict,gravite:grav,signaleur:sapRole==='OPERATOR'?'Secouriste':'Admin.'+sapZone,t:nowShort(),st:'actif',coord:'--'});
+    sapLog(sapRole==='OPERATOR'?'Operateur.'+sapZone:'Admin.'+sapZone,'SIGNAL_ACCIDENT',axe,type+' '+vict+' victimes');
+    simulateNotifDests(type.indexOf('INCENDIE')>=0?'INCENDIE':type==='NOYADE'?'NOYADE':'ACCIDENT',axe);
+    toast('Signal envoyé (démo)','#FB923C');closeModal();nav('sap');
+  }
+}
+
+/* Signal terrain */
+async function saveTerrainSignal(){
+  var axe=(eid('chapAxe')||{}).value||'';
+  var lieu=((eid('chapLieu')||{}).value||'').trim();
+  var vict=parseInt((eid('chapVict')||{}).value)||1;
+  var grav=(eid('chapGrav')||{}).value||'critique';
+  if(dbReady&&currentUser){
+    var res=await db.from('sap_signals').insert({
+      type:terrainSignalType,axe:axe,lieu_detail:lieu||null,victimes:vict,gravite:grav,
+      lat:sapGpsCoords?sapGpsCoords.lat:null,lon:sapGpsCoords?sapGpsCoords.lon:null,
+      precision_m:sapGpsCoords?sapGpsCoords.acc:null,region:sapZone,
+      signaleur_id:currentUser.id
+    });
+    if(res.error){toast('Erreur envoi: '+res.error.message,'#FF5449');return;}
+    /* Incrémenter signalements */
+    await db.from('profiles').update({signalements:supabase.rpc('profiles_increment_signalements')}).eq('id',currentUser.id);
+    toast('Signal envoyé au COUS ✓','#4ADE80');
+  } else {
+    /* Demo fallback */
+    var sec=sapSecouristes.find(function(s){return s.actif;})||{nom:'Secouriste',id:'SEC-TRN'};
+    sapSignals.unshift({id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' — '+lieu:''),type:terrainSignalType,victimes:vict,gravite:grav,signaleur:sec.nom,t:nowShort(),st:'actif',coord:sapGpsCoords?sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O':'--'});
+    if(sec.signalements!==undefined)sec.signalements++;
+    toast('Signal envoyé (démo)','#FB923C');
+  }
+  addAdminLog('TERRAIN','Signal terrain: '+terrainSignalType+' '+axe);
+  simulateNotifDests(terrainSignalType.indexOf('INCENDIE')>=0?'INCENDIE':terrainSignalType==='NOYADE'?'NOYADE':'ACCIDENT',axe);
+  closeModal();navTerrain('mes');
+}
+
+/* COUS Incident — Déclarer */
+async function saveCousDB(){
+  var ctype=(eid('cType')||{}).value||'Incident';
+  var clieu=((eid('cLieu')||{}).value||'').trim();
+  var cgrav=(eid('cGrav')||{}).value||'urgent';
+  var ceq=((eid('cEquipes')||{}).value||'A confirmer').split(',').map(function(e){return e.trim();}).filter(Boolean);
+  if(!clieu){toast('Lieu obligatoire','#FF5449');return;}
+  if(dbReady){
+    var res=await db.from('cous_incidents').insert({
+      type:ctype, lieu:clieu, gravite:cgrav, equipes:ceq,
+      declarant_id:currentUser?currentUser.id:null
+    });
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    if(cgrav==='critique') toast('🚨 Incident critique déclaré: '+ctype,'#FF5449');
+    else toast('Incident déclaré: '+ctype);
+  } else {
+    cousIncidents.unshift({id:'COUS-'+String(Date.now()).slice(-3),type:ctype,lieu:clieu,gravite:cgrav,st:'en_cours',equipes:ceq,t:nowShort()});
+    toast('Incident déclaré (démo)','#FB923C');
+  }
+  addAdminLog('COUS','Incident déclaré: '+ctype+' — '+clieu);
+  closeModal();nav('cous');
+}
+
+/* COUS Incident — Modifier */
+async function saveCousEditDB(iid){
+  var nl=((eid('ceditLieu')||{}).value||'').trim();
+  var ng=(eid('ceditGrav')||{}).value||'urgent';
+  if(dbReady){
+    var inc=cousIncidents.find(function(c){return c.id===iid;});
+    var dbId=inc?inc._db_id:null;
+    if(dbId){
+      await db.from('cous_incidents').update({lieu:nl||undefined,gravite:ng}).eq('id',dbId);
+      toast('Incident mis à jour');
+    }
+  } else {
+    cousIncidents=cousIncidents.map(function(c){return c.id===iid?Object.assign({},c,{lieu:nl||c.lieu,gravite:ng}):c;});
+    toast('Incident mis à jour (démo)');
+  }
+  addAdminLog('COUS','Incident modifié: '+iid);closeModal();nav('cous');
+}
+
+/* COUS Incident — Clôturer */
+async function closeCousDB(iid){
+  if(dbReady){
+    var inc=cousIncidents.find(function(c){return c.id===iid;});
+    if(inc&&inc._db_id) await db.from('cous_incidents').update({statut:'ferme'}).eq('id',inc._db_id);
+  }
+  cousIncidents=cousIncidents.map(function(c){return c.id===iid?Object.assign({},c,{st:'ferme'}):c;});
+  toast('Incident clôturé');addAdminLog('COUS','Incident clôturé: '+iid);nav('cous');
+}
+
+/* Lits — Modifier disponibles */
+async function editLitServiceDB(hid,sname,newDispo){
+  if(dbReady){
+    var res=await db.from('lits_services').update({disponibles:newDispo,updated_by:currentUser?currentUser.id:null}).eq('hopital_id',hid).eq('service',sname);
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    toast('Lits mis à jour ✓');
+  } else {
+    litsData=litsData.map(function(h){
+      if(h.id!==hid)return h;
+      return Object.assign({},h,{services:h.services.map(function(s){
+        if(s.s!==sname)return s;
+        var c=newDispo/s.total<.15?'#ef4444':newDispo/s.total<.3?'#f97316':'#10b981';
+        return Object.assign({},s,{dispo:newDispo,c:c});
+      })});
+    });
+    toast('Lits mis à jour (démo)');
+  }
+  addAdminLog('LIT','MAJ lits: '+hid+' '+sname+' → '+newDispo);nav('lit');
+}
+
+/* Sang — Modifier stock */
+async function saveSangDB(centreId,groupe){
+  var ns=parseInt((eid('sangStock')||{}).value)||0;
+  var nseuil=parseInt((eid('sangSeuil')||{}).value)||0;
+  if(dbReady){
+    var res=await db.from('sang_stocks').update({stock:ns,seuil_alerte:nseuil,updated_by:currentUser?currentUser.id:null}).eq('centre_id',centreId).eq('groupe',groupe);
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    toast('Stock mis à jour ✓');
+  } else {
+    sangData=sangData.map(function(c){if(c.id!==centreId)return c;var ng={};Object.keys(c.groupes).forEach(function(g){ng[g]=g===groupe?Object.assign({},c.groupes[g],{stock:ns,seuil:nseuil}):c.groupes[g];});return Object.assign({},c,{groupes:ng});});
+    toast('Stock mis à jour (démo)');
+  }
+  addAdminLog('SANG','MAJ '+groupe+' '+centreId+': stock='+ns);closeModal();nav('sang');
+}
+
+/* Ambulances — Changer statut */
+async function editAmbStatusDB(aid,newSt){
+  if(dbReady){
+    await db.from('ambulances').update({statut:newSt}).eq('id',aid);
+  }
+  ambData=ambData.map(function(a){return a.id===aid?Object.assign({},a,{st:newSt}):a;});
+  addAdminLog('AMB','Statut '+aid+': '+newSt);
+  if(curMod==='amb')nav('amb');
+}
+
+/* Ambulances — Ajouter */
+async function saveAmbDB(){
+  var aid=((eid('aId')||{}).value||'').trim();
+  var atype=(eid('aType')||{}).value||'samu';
+  var aeqp=(eid('aEqp')||{}).value||'BLS';
+  var asec=(eid('aSector')||{}).value||'Dakar';
+  if(!aid){toast('Identifiant obligatoire','#FF5449');return;}
+  if(dbReady){
+    var res=await db.from('ambulances').insert({id:aid,nom:aid+' '+atype.toUpperCase(),type:atype,secteur:asec,equipement:aeqp,statut:'disponible',lat:14.693,lon:-17.450});
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    toast('Véhicule ajouté ✓');
+  } else {
+    var cols={samu:'#ef4444',smur:'#f97316',pompiers:'#f59e0b',croix_rouge:'#10b981'};
+    ambData.push({id:aid,nom:aid+' '+atype.toUpperCase(),type:atype,sector:asec,x:100+Math.random()*200,y:50+Math.random()*150,bat:100,st:'disponible',km:0,eqp:aeqp});
+    toast('Véhicule ajouté (démo)');
+  }
+  addAdminLog('AMB','Véhicule ajouté: '+aid);closeModal();nav('amb');
+}
+
+/* Ambulances — Supprimer */
+async function deleteAmbDB(aid){
+  if(!confirm('Retirer ce véhicule ?')) return;
+  if(dbReady){
+    await db.from('ambulances').delete().eq('id',aid);
+  }
+  ambData=ambData.filter(function(a){return a.id!==aid;});
+  addAdminLog('AMB','Véhicule retiré: '+aid);toast('Véhicule retiré','#FF5449');nav('amb');
+}
+
+/* Services ADM — Ajouter */
+async function saveNewSvcDB(){
+  var nom=((eid('fNom')||{}).value||'').trim();
+  var tel=((eid('fTel')||{}).value||'').trim();
+  var type=(eid('fType')||{}).value||'medical';
+  var site=((eid('fSite')||{}).value||'').trim()||'Dakar';
+  var agents=parseInt((eid('fAg')||{}).value)||0;
+  if(!nom||!tel){toast('Nom et téléphone obligatoires','#FF5449');return;}
+  if(dbReady){
+    var res=await db.from('services_urgence').insert({nom:nom,type:type,telephone:tel,site:site,agents:agents,statut:'actif'}).select().single();
+    if(res.error){toast('Erreur: '+res.error.message,'#FF5449');return;}
+    services.push({id:res.data.id,nom:nom,type:type,tel:tel,site:site,agents:agents,statut:'actif'});
+    toast('Service ajouté ✓');
+  } else {
+    services.push({id:nextSvcId++,nom:nom,type:type,tel:tel,site:site,agents:agents,statut:'actif'});
+    toast('Service ajouté (démo)');
+  }
+  addAdminLog('ADM','Service ajouté: '+nom);closeModal();nav('adm');
+}
+
+/* Services ADM — Modifier */
+async function saveEditSvcDB(){
+  var id=parseInt((eid('fEditId')||{}).value);
+  var nom=((eid('fNom')||{}).value||'').trim();
+  var tel=((eid('fTel')||{}).value||'').trim();
+  var agents=parseInt((eid('fAg')||{}).value)||0;
+  var site=((eid('fSite')||{}).value||'').trim();
+  if(!nom||!tel){toast('Nom et téléphone obligatoires','#FF5449');return;}
+  if(dbReady){
+    await db.from('services_urgence').update({nom:nom,telephone:tel,agents:agents,site:site}).eq('id',id);
+    toast('Service modifié ✓');
+  }
+  services=services.map(function(s){return s.id!==id?s:Object.assign({},s,{nom:nom,tel:tel,agents:agents,site:site||s.site});});
+  addAdminLog('ADM','Service modifié: '+nom);closeModal();nav('adm');
+}
+
+/* Services ADM — Supprimer */
+async function delSvcDB(id){
+  var s=services.find(function(x){return x.id===id;});
+  if(dbReady){
+    await db.from('services_urgence').delete().eq('id',id);
+  }
+  services=services.filter(function(x){return x.id!==id;});
+  addAdminLog('ADM','Service supprimé: '+(s?s.nom:'#'+id));toast('Service supprimé','#FF5449');nav('adm');
+}
+
+/* Urgence ORSEC — Déclarer */
+async function declUrgDB(type,crit){
+  var t={med:'Malaise athlète',acc:'Collision navette',inc:'Incendie local',cat:'Effondrement structure',san:'Cas groupes maladie'};
+  var l={med:'Stade LSS',acc:'Route VDN km4',inc:'Arena Dakar',cat:'Stade LSS Tribune',san:'Village Athlètes'};
+  var titre=t[type]||type;var lieu=l[type]||'Site JOJ';
+  if(dbReady){
+    await db.from('urgences').insert({titre:titre,lieu:lieu,criticite:crit,statut:'ouvert',declarant_id:currentUser?currentUser.id:null});
+  }
+  urgences.unshift({id:'U'+Date.now(),titre:titre,lieu:lieu,crit:crit,st:'ouvert'});
+  addAdminLog(crit==='P1'?'ALERTE P1':'URGENCE',titre+' '+lieu);
+  if(type==='cat')togOrsec('PLAN_ROUGE','Plan Rouge');
+  if(type==='san')togOrsec('PLAN_SAN','ORSEC Sanitaire');
+  toast(crit==='P1'?'ALERTE P1 déclenchée!':'Urgence déclarée');nav('m2');
+}
+
+/* Urgence ORSEC — Résoudre */
+async function resUrgDB(id){
+  if(dbReady){
+    await db.from('urgences').update({statut:'resolu',resolved_at:new Date().toISOString()}).eq('id',id);
+  }
+  urgences=urgences.map(function(u){return u.id===id?Object.assign({},u,{st:'resolu'}):u;});
+  addAdminLog('SYS','Urgence résolue: '+id.slice(-4));toast('Urgence résolue');nav('m2');
+}
+
+/* ── Remplacer les fonctions originales par les versions DB ── */
+/* Ces assignations seront faites au moment de l'initialisation */
+function wireDBFunctions(){
+  /* Pointer les fonctions vers les versions DB */
+  window.saveSignal       = saveSignalDB;
+  window.saveCous         = saveCousDB;
+  window.editLitService   = editLitServiceDB;
+  window.saveSang         = saveSangDB;
+  window.editAmbStatus    = editAmbStatusDB;
+  window.saveAmb          = saveAmbDB;
+  window.deleteAmb        = deleteAmbDB;
+  window.saveNewSvc       = saveNewSvcDB;
+  window.saveEditSvc      = saveEditSvcDB;
+  window.delSvc           = delSvcDB;
+  window.declUrg          = declUrgDB;
+  window.resUrg           = resUrgDB;
+  /* saveCousEdit prend un paramètre iid */
+  window.saveCousEdit     = function(iid){ saveCousEditDB(iid); };
+  console.log('[NEXKORD] ✅ Fonctions DB branchées');
+}
+
+/* ══════════════════════════════════════════════
+   AUTHENTICATION SUPABASE
+══════════════════════════════════════════════ */
+async function doLoginDB(email, password, role){
+  if(!dbReady){ doLoginDemo(role); return; }
+  var res = await db.auth.signInWithPassword({email:email, password:password});
+  if(res.error){
+    toast('Identifiants incorrects: '+res.error.message,'#FF5449');
+    var btn=eid('loginBtn');
+    if(btn){btn.textContent='SE CONNECTER \u00a0→';btn.style.background='var(--g)';}
+    return;
+  }
+  currentUser = res.data.user;
+  /* Récupérer le profil et le rôle */
+  var profRes = await db.from('profiles').select('*').eq('id',currentUser.id).single();
+  var profile = profRes.data || {role:'VIEWER', nom: email.split('@')[0]};
+  sapRole = profile.role;
+  /* Charger toutes les données */
+  await loadAllData();
+  wireDBFunctions();
+  dbLog('AUTH','Connexion réussie','system');
+  /* Routing */
+  var uname=eid('userName');var urole=eid('userRole');
+  if(uname)uname.textContent=profile.nom||email.split('@')[0];
+  if(urole)urole.textContent=profile.role;
+  eid('login-screen').style.display='none';
+  if(profile.role==='OPERATOR'){
+    eid('terrain-shell').classList.add('show');
+    var lbl=eid('t-role-label');
+    if(lbl)lbl.textContent='SECOURISTE · '+(profile.zone||'TERRAIN').toUpperCase();
+    navTerrain('signal');
+  } else if(profile.role==='VIEWER'){
+    eid('app-shell').classList.add('show');buildSidebar();nav('m4');
+  } else {
+    eid('app-shell').classList.add('show');buildSidebar();
+    nav(profile.role==='SUPER_ADMIN'?'m1':'cous');
+  }
+}
+
+function doLoginDemo(roleSelected){
+  /* Mode démo (pas de Supabase configuré) */
+  sapRole=roleSelected||loginRoleSelected;
+  var nameMap={'SUPER_ADMIN':'Coord. JOJ (démo)','ADMIN':'Admin COUS (démo)','OPERATOR':'Secouriste (démo)','VIEWER':'Partenaire (démo)'};
+  var uname=eid('userName');var urole=eid('userRole');
+  if(uname)uname.textContent=nameMap[sapRole]||sapRole;
+  if(urole)urole.textContent=sapRole;
+  eid('login-screen').style.display='none';
+  if(sapRole==='OPERATOR'){
+    eid('terrain-shell').classList.add('show');navTerrain('signal');
+  } else if(sapRole==='VIEWER'){
+    eid('app-shell').classList.add('show');buildSidebar();nav('m4');
+  } else {
+    eid('app-shell').classList.add('show');buildSidebar();
+    nav(sapRole==='SUPER_ADMIN'?'m1':'cous');
+  }
+  toast('Mode démo — configurez Supabase pour persister les données','#FB923C');
+}
+
+/* ── Déconnexion ── */
+async function doLogoutDB(){
+  if(dbReady&&currentUser) await db.auth.signOut();
+  currentUser=null;
+  eid('app-shell').classList.remove('show');
+  var ts=eid('terrain-shell');if(ts)ts.classList.remove('show');
+  eid('login-screen').style.display='flex';
+  var btn=eid('loginBtn');
+  if(btn){btn.textContent='SE CONNECTER \u00a0→';btn.style.background='var(--g)';}
+}
+
+/* ── Vérifier session existante ── */
+async function checkExistingSession(){
+  if(!dbReady) return false;
+  var res=await db.auth.getSession();
+  if(res.data&&res.data.session&&res.data.session.user){
+    currentUser=res.data.session.user;
+    var profRes=await db.from('profiles').select('*').eq('id',currentUser.id).single();
+    if(profRes.data){
+      sapRole=profRes.data.role;
+      await loadAllData();
+      wireDBFunctions();
+      var uname=eid('userName');var urole=eid('userRole');
+      if(uname)uname.textContent=profRes.data.nom;
+      if(urole)urole.textContent=profRes.data.role;
+      return true;
+    }
+  }
+  return false;
+}
+
 
 /* ── STATE ── */
 var curMod='m1';
@@ -1110,27 +1884,518 @@ function buildRoleChips(){
 }
 function doLogin(){
   var btn=eid('loginBtn');
-  if(btn){btn.textContent='Connexion...';btn.style.background='#00A85A';}
-  sapRole=loginRoleSelected;
-  var roleNames={'SUPER_ADMIN':'Super Admin','ADMIN':'Admin Dakar','OPERATOR':'Secouriste','VIEWER':'Partenaire'};
-  var uname=eid('userName');var urole=eid('userRole');
-  if(uname)uname.textContent=(loginRoleSelected==='SUPER_ADMIN'?'Admin':'Operateur')+' Dakar';
-  if(urole)urole.textContent=loginRoleSelected;
-  setTimeout(function(){
-    eid('login-screen').style.display='none';
-    eid('app-shell').classList.add('show');
-    buildSidebar();
-    /* Navigate to first accessible module */
-    var firstMod = getRoleLevel()>=2 ? 'm1' : getRoleLevel()>=1 ? 'geo' : 'm4';
-    nav(firstMod);
-  },400);
+  if(btn){btn.textContent='Connexion...';btn.style.background='rgba(0,194,98,.7)';}
+  var email=((eid('loginEmail')||{}).value||'').trim();
+  var password=((eid('loginPw')||{}).value||'').trim();
+  /* Si Supabase configuré ET identifiants non-demo → vraie auth */
+  if(dbReady && email && password && email!=='admin@nexkord.sn'){
+    doLoginDB(email, password, loginRoleSelected);
+  } else {
+    setTimeout(function(){ doLoginDemo(loginRoleSelected); },400);
+  }
 }
-function doLogout(){
+
+function switchToAdmin(){
+  /* Passer du mode terrain au dashboard complet */
+  eid('terrain-shell').classList.remove('show');
+  eid('app-shell').classList.add('show');
+  buildSidebar();
+  var firstMod=getRoleLevel()>=2?'m1':'sap';
+  nav(firstMod);
+  toast('Mode administration activé');
+}
+function switchToTerrain(){
   eid('app-shell').classList.remove('show');
-  eid('login-screen').style.display='flex';
-  var btn=eid('loginBtn');
-  if(btn){btn.textContent='SE CONNECTER \u00a0→';btn.style.background='var(--g)';}
+  eid('terrain-shell').classList.add('show');
+  navTerrain('signal');
+  toast('Mode terrain activé');
 }
+
+/* ══════════════════════════════════════════════
+   MODE TERRAIN — Rendu par onglet
+══════════════════════════════════════════════ */
+var terrainTab='signal';
+function navTerrain(tab){
+  terrainTab=tab;
+  document.querySelectorAll('.t-nav-btn').forEach(function(b){b.classList.remove('on');});
+  var active=eid('tnav-'+tab);if(active)active.classList.add('on');
+  var body=eid('terrain-body');if(!body)return;
+  while(body.firstChild)body.removeChild(body.firstChild);
+  if(tab==='signal')renderTerrainSignal(body);
+  else if(tab==='mes')renderTerrainMesSignaux(body);
+  else if(tab==='urgences')renderTerrainUrgences(body);
+  else if(tab==='profil')renderTerrainProfil(body);
+}
+
+function renderTerrainSignal(v){
+  /* GPS bar */
+  var gpsBar=mk('div','t-gps-bar');
+  gpsBar.id='t-gps-bar';
+  gpsBar.innerHTML='<i class="ti ti-map-pin" style="font-size:14px" aria-hidden="true"></i>'+
+    '<span id="t-gps-txt">Appuyez sur GPS pour localiser</span>'+
+    '<button onclick="terrainGetGPS()" style="margin-left:auto;background:rgba(0,194,98,.12);border:1px solid rgba(0,194,98,.3);border-radius:6px;padding:3px 10px;color:var(--g2);font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">GPS AUTO</button>';
+  v.appendChild(gpsBar);
+
+  /* Bouton SIGNALER principal */
+  var bigBtn=mk('button','t-btn-primary');
+  bigBtn.innerHTML='<i class="ti ti-alert-triangle" style="font-size:28px" aria-hidden="true"></i>SIGNALER UN ACCIDENT';
+  bigBtn.onclick=openTerrainSignalModal;
+  v.appendChild(bigBtn);
+
+  /* Boutons secondaires */
+  var grid=mk('div','t-btn-grid');
+  var btns=[
+    {ico:'ti-microphone',lbl:'Signalement\nvocal',color:'#3B8AE8',fn:function(){toggleVoice();toast('Microphone activé');}},
+    {ico:'ti-camera',lbl:'Photo\nincident',color:'#9B6EF3',fn:openPhotoSignal},
+    {ico:'ti-brand-whatsapp',lbl:'Bot\nWhatsApp',color:'#25D366',fn:function(){toast('Bot WhatsApp: envoyez CHOC au +221 XX');}},
+    {ico:'ti-map-2',lbl:'Carte\nincidents',color:'var(--gold)',fn:function(){navTerrain('mes');}},
+  ];
+  btns.forEach(function(b){
+    var btn=mk('button','t-btn-sec');
+    btn.style.borderColor='rgba(0,0,0,.1)';
+    btn.innerHTML='<i class="ti '+b.ico+'" style="color:'+b.color+'" aria-hidden="true"></i>'+
+      '<span style="font-size:11px;text-align:center;white-space:pre-line">'+b.lbl+'</span>';
+    btn.onclick=b.fn;
+    grid.appendChild(btn);
+  });
+  v.appendChild(grid);
+
+  /* Statut secouriste */
+  var sec=sapSecouristes.find(function(s){return s.actif;});
+  if(sec){
+    var tt=mk('div');tt.className='t-section-title';tt.textContent='MON STATUT';v.appendChild(tt);
+    var sCard=mk('div');
+    sCard.style.cssText='padding:12px 14px;border-radius:10px;background:rgba(0,194,98,.08);border:1px solid rgba(0,194,98,.25);display:flex;align-items:center;gap:12px';
+    sCard.innerHTML='<div style="width:40px;height:40px;border-radius:50%;background:rgba(0,194,98,.15);border:2px solid var(--g2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--g2)">'+sec.nom.charAt(0)+'</div>'+
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+sec.nom+'</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+sec.axe+' · '+sec.certif+'</div>'+
+      '<div style="font-size:9px;color:var(--g2);margin-top:3px;font-family:var(--mono)">'+sec.signalements+' signalements · ACTIF</div></div>'+
+      '<div style="background:rgba(0,194,98,.15);border:1px solid var(--g2);border-radius:20px;padding:4px 10px;font-size:9px;font-weight:700;color:var(--g2)">EN SERVICE</div>';
+    v.appendChild(sCard);
+  }
+
+  /* Photo preview (si attachée) */
+  var pp=mk('div');pp.id='terrain-photo-prev';pp.style.cssText='margin-top:10px;display:none;max-width:180px';
+  v.appendChild(pp);
+  /* Voice output */
+  var vt=mk('div');vt.id='terrain-voice-result';vt.style.cssText='margin-top:8px;display:none;padding:8px 12px;border-radius:8px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);font-size:11px;color:var(--text)';
+  v.appendChild(vt);
+}
+
+function renderTerrainMesSignaux(v){
+  var title=mk('div','t-section-title');title.textContent='MES SIGNAUX RÉCENTS';v.appendChild(title);
+  var mySigs=sapSignals.filter(function(s){return s.signaleur&&s.signaleur.indexOf('Secouriste')>=0||s.signaleur&&s.signaleur.indexOf('Oumar')>=0||s.signaleur&&s.signaleur.indexOf('Fatou')>=0;}).concat(sapSignals.slice(0,3));
+  /* dedupe */
+  var seen={};mySigs=mySigs.filter(function(s){if(seen[s.id])return false;seen[s.id]=true;return true;});
+  if(!mySigs.length){
+    var emp=mk('div');emp.style.cssText='text-align:center;padding:40px 20px;color:var(--muted)';
+    emp.innerHTML='<i class="ti ti-map-pin-off" style="font-size:36px;display:block;margin-bottom:12px" aria-hidden="true"></i><div style="font-size:13px">Aucun signal envoyé</div><div style="font-size:11px;margin-top:6px">Utilisez le bouton SIGNALER</div>';
+    v.appendChild(emp);return;
+  }
+  var gc={critique:'#FF5449',urgent:'#FB923C',leger:'#00C262',modere:'#FBBF24'};
+  mySigs.forEach(function(sig){
+    var c=gc[sig.gravite]||'#64748B';
+    var card=mk('div','t-signal-card');
+    card.style.setProperty('--accent',c);
+    card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+      '<span style="font-family:monospace;font-size:10px;color:var(--muted)">'+sig.id+'</span>'+
+      '<span style="font-family:monospace;font-size:10px;color:var(--amber)">'+sig.t+'</span>'+
+      '<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:'+c+'15;color:'+c+';border:1px solid '+c+'30">'+sig.gravite.toUpperCase()+'</span>'+
+      '</div>'+
+      '<div style="font-size:13px;font-weight:600;color:var(--text)">'+sig.type.replace(/_/g,' ')+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);margin-top:3px"><i class="ti ti-map-pin" style="font-size:10px" aria-hidden="true"></i> '+sig.axe+'</div>'+
+      '<div style="font-size:10px;color:'+(sig.st==='actif'?c:sig.st==='pris_en_charge'?'#00C262':'#64748B')+';margin-top:5px;font-weight:700">'+
+      (sig.st==='actif'?'⏳ En attente de dispatch':sig.st==='pris_en_charge'?'✓ Pris en charge':'✓ Clôturé')+
+      '</div>';
+    v.appendChild(card);
+  });
+
+  /* Mini carte SVG */
+  var title2=mk('div','t-section-title');title2.textContent='CARTE DE MES ZONES';v.appendChild(title2);
+  var mapWrap=mk('div');mapWrap.style.cssText='background:var(--mapbg);border-radius:10px;overflow:hidden';
+  var NS='http://www.w3.org/2000/svg';var svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 340 180');svg.setAttribute('width','100%');svg.style.display='block';
+  var svgStr='<text x="4" y="12" fill="rgba(148,163,184,.4)" font-size="7" font-family="monospace">CARTE INCIDENTS — DAKAR</text>';
+  svgStr+='<path d="M20 170 Q70 145 120 125 Q170 105 210 85 Q250 68 300 50" stroke="rgba(148,163,184,.12)" fill="none" stroke-width="2"/>';
+  var gravColors={critique:'#FF5449',urgent:'#FB923C',leger:'#00C262',modere:'#FBBF24'};
+  var positions=[[160,100],[100,130],[220,90],[140,150],[200,115],[80,100],[260,80]];
+  sapSignals.filter(function(s){return s.st==='actif';}).slice(0,6).forEach(function(sig,i){
+    var p=positions[i]||[170,110];var c2=gravColors[sig.gravite]||'#64748B';
+    svgStr+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="8" fill="'+c2+'" opacity=".9"/>';
+    if(sig.gravite==='critique')svgStr+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="14" fill="none" stroke="'+c2+'" stroke-width="1.5" opacity=".4"><animate attributeName="r" values="8;18;8" dur="1.5s" repeatCount="indefinite"/></circle>';
+    svgStr+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="#fff" opacity=".9"/>';
+  });
+  svg.innerHTML=svgStr;mapWrap.appendChild(svg);v.appendChild(mapWrap);
+}
+
+function renderTerrainUrgences(v){
+  var title=mk('div','t-section-title');title.textContent='NUMÉROS D\'URGENCE SÉNÉGAL';v.appendChild(title);
+  var numList=[
+    {n:'15',lbl:'SAMU',sub:'Urgences médicales 24h/24',c:'#FF5449',ico:'ti-ambulance'},
+    {n:'18',lbl:'Sapeurs-Pompiers',sub:'Incendie · Accident · Secours',c:'#FB923C',ico:'ti-flame'},
+    {n:'17',lbl:'Police Nationale',sub:'Sécurité · Violence · Ordre',c:'#3B8AE8',ico:'ti-shield'},
+    {n:'1515',lbl:'Gendarmerie',sub:'Zones péri-urbaines',c:'#3B8AE8',ico:'ti-shield-lock'},
+    {n:'+221 33 869 00 00',lbl:'SMUR CHU Dakar',sub:'Médecin réanimation mobile',c:'#FF5449',ico:'ti-heart-rate-monitor'},
+    {n:'+221 33 839 91 00',lbl:'COUS Central',sub:'Coordination sanitaire',c:'#9B6EF3',ico:'ti-virus'},
+    {n:'+221 33 869 11 11',lbl:'Croix-Rouge SN',sub:'Postes de secours JOJ',c:'#00C262',ico:'ti-heart-plus'},
+    {n:'800 00 50 50',lbl:'SOS Médecins',sub:'Gratuit · Domicile',c:'#00C262',ico:'ti-stethoscope'},
+  ];
+  numList.forEach(function(n){
+    var card=mk('div','t-num-card');
+    card.innerHTML='<div style="width:44px;height:44px;border-radius:10px;background:'+n.c+'14;border:1px solid '+n.c+'30;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+n.ico+'" style="font-size:20px;color:'+n.c+'" aria-hidden="true"></i></div>'+
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+n.lbl+'</div><div style="font-size:10px;color:var(--muted);margin-top:2px">'+n.sub+'</div></div>'+
+      '<div class="t-num-big" style="color:'+n.c+'">'+n.n+'</div>';
+    (function(num,lab){card.onclick=function(){addAdminLog('TERRAIN','Appel: '+lab+' '+num);toast('Appel '+lab+' (simulation)','#00C262');};})(n.n,n.lbl);
+    v.appendChild(card);
+  });
+  var waTitle=mk('div','t-section-title');waTitle.textContent='BOT WHATSAPP mINFOSANTÉ';v.appendChild(waTitle);
+  var waCard=mk('div');
+  waCard.style.cssText='padding:14px;border-radius:10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25)';
+  waCard.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+
+    '<i class="ti ti-brand-whatsapp" style="font-size:28px;color:#25D366" aria-hidden="true"></i>'+
+    '<div><div style="font-size:14px;font-weight:700;color:var(--text)">+221 78 · · · · · ·</div>'+
+    '<div style="font-size:10px;color:var(--muted)">Bot mInfoSanté Traffic actif 24h/24</div></div></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">'+
+    '<div style="padding:6px 10px;border-radius:6px;background:rgba(37,211,102,.1);color:#25D366;font-weight:600">CHOC → signal accident</div>'+
+    '<div style="padding:6px 10px;border-radius:6px;background:rgba(37,211,102,.1);color:#25D366;font-weight:600">GPS → envoyer position</div>'+
+    '<div style="padding:6px 10px;border-radius:6px;background:rgba(37,211,102,.1);color:#25D366;font-weight:600">AIDE → liste commandes</div>'+
+    '<div style="padding:6px 10px;border-radius:6px;background:rgba(37,211,102,.1);color:#25D366;font-weight:600">RAPPORT → mes signaux</div>'+
+    '</div>';
+  v.appendChild(waCard);
+}
+
+function renderTerrainProfil(v){
+  var sec=sapSecouristes.find(function(s){return s.actif;})||{nom:'Secouriste Terrain',axe:'VDN',certif:'PSC1',signalements:0,region:'Dakar'};
+  var title=mk('div','t-section-title');title.textContent='MON PROFIL';v.appendChild(title);
+  var pCard=mk('div');
+  pCard.style.cssText='padding:20px;border-radius:12px;background:var(--glass);border:1px solid var(--glassborder);text-align:center;margin-bottom:14px';
+  pCard.innerHTML='<div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,rgba(0,145,77,.4),rgba(0,194,98,.2));border:2px solid var(--g2);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--g2);margin:0 auto 12px">'+sec.nom.charAt(0)+'</div>'+
+    '<div style="font-size:17px;font-weight:700;color:var(--text)">'+sec.nom+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:4px">'+sec.axe+' · '+sec.region+'</div>'+
+    '<div style="margin-top:10px;display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;background:rgba(0,194,98,.1);border:1px solid rgba(0,194,98,.25);font-size:10px;font-weight:700;color:var(--g2)"><span class="dot-live"></span>ACTIF EN SERVICE</div>';
+  v.appendChild(pCard);
+
+  var statsGrid=mk('div');statsGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px';
+  [{lbl:'Signalements',val:String(sec.signalements),c:'#FF5449'},{lbl:'Certification',val:sec.certif,c:'#3B8AE8'},{lbl:'Zone',val:sec.axe.split(' ')[0],c:'var(--gold)'}].forEach(function(k){
+    var d=mk('div');d.style.cssText='padding:12px;border-radius:9px;background:var(--glass);border:1px solid var(--glassborder);text-align:center';
+    d.innerHTML='<div style="font-family:monospace;font-size:18px;font-weight:700;color:'+k.c+'">'+k.val+'</div><div style="font-size:9px;color:var(--muted);margin-top:3px">'+k.lbl+'</div>';
+    statsGrid.appendChild(d);
+  });
+  v.appendChild(statsGrid);
+
+  /* Switch vers vue admin */
+  var adminCard=mk('div');
+  adminCard.style.cssText='padding:14px;border-radius:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);display:flex;align-items:center;gap:12px;cursor:pointer';
+  adminCard.innerHTML='<i class="ti ti-layout-dashboard" style="font-size:24px;color:var(--blue)" aria-hidden="true"></i>'+
+    '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">Accès vue administration</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-top:2px">Tous les modules NEXKORD</div></div>'+
+    '<i class="ti ti-chevron-right" style="font-size:16px;color:var(--muted)" aria-hidden="true"></i>';
+  adminCard.onclick=switchToAdmin;
+  v.appendChild(adminCard);
+
+  /* Déconnexion */
+  var outBtn=mk('button','btn btn-r');outBtn.style.cssText='width:100%;justify-content:center;margin-top:12px;padding:12px;font-size:12px';
+  outBtn.innerHTML='<i class="ti ti-logout" style="font-size:13px" aria-hidden="true"></i> Se déconnecter';
+  outBtn.onclick=doLogout;
+  v.appendChild(outBtn);
+}
+
+function openTerrainSignalModal(){
+  var axesFull=['VDN — Dakar','Corniche — Dakar','Route Rufisque','Autoroute A1','Dial Diop','RN1 — Thiès','RN2 — Saint-Louis','RN3 — Diourbel','Route Mbao','RN Kaolack','RN4 — Ziguinchor','RN6 — Tambacounda','Route Matam','RN7 — Louga'];
+  var axes=axesFull.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+  var gpsInfo=sapGpsCoords?'<div style="color:var(--g2);font-size:10px;margin-top:4px"><i class="ti ti-map-pin" style="font-size:10px" aria-hidden="true"></i> GPS: '+sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O</div>':'';
+  openModal('<div style="font-weight:700;font-size:17px;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-alert-triangle" style="font-size:16px;color:var(--red2)" aria-hidden="true"></i>SIGNALER UN ACCIDENT</div>'+
+    '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Type d\'incident *</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">'+
+    [['CHOC_GRAVE','Choc grave','#FF5449'],['RENVERSEMENT','Renversement','#FB923C'],['INCENDIE','Incendie véhicule','#FBBF24'],['NOYADE','Noyade','#3B8AE8'],['CHUTE_MOTO','Chute moto','#9B6EF3'],['OBSTACLE','Obstacle route','#64748B']].map(function(t){
+      return '<button onclick="selectTerrainType(\''+t[0]+'\')" id="ttype-'+t[0]+'" style="padding:8px;border:1px solid '+t[2]+'33;border-radius:7px;background:'+t[2]+'08;color:'+t[2]+';font-family:var(--font);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s">'+t[1]+'</button>';
+    }).join('')+'</div></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Axe / Zone</label><select class="sel" id="chapAxe" style="width:100%">'+axes+'</select></div>'+
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Victimes visibles</label><input class="inp" id="chapVict" type="number" min="0" value="1"/></div></div>'+
+    '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Lieu précis</label><input class="inp" id="chapLieu" placeholder="Ex: km12 direction Almadies"/>'+gpsInfo+'</div>'+
+    '<div style="margin-bottom:14px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Gravité estimée</label>'+
+    '<select class="sel" id="chapGrav" style="width:100%"><option value="critique">🔴 Critique P1 — Vie en danger</option><option value="urgent">🟠 Urgent P2 — Blessure grave</option><option value="leger">🟢 Léger — Dommages matériels</option></select></div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="saveTerrainSignal()" class="t-btn-primary" style="flex:1;padding:14px;font-size:13px;border-radius:10px"><i class="ti ti-send" style="font-size:15px" aria-hidden="true"></i> ENVOYER AU COUS</button>'+
+    '<button onclick="closeModal()" style="padding:14px 16px;border:1px solid var(--br);border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font)">Annuler</button></div>');
+}
+var terrainSignalType='CHOC_GRAVE';
+function selectTerrainType(t){
+  terrainSignalType=t;
+  document.querySelectorAll('[id^="ttype-"]').forEach(function(b){b.style.opacity='0.5';b.style.fontWeight='500';});
+  var sel=eid('ttype-'+t);if(sel){sel.style.opacity='1';sel.style.fontWeight='700';sel.style.transform='scale(1.04)';}
+}
+function saveTerrainSignal(){
+  var axe=(eid('chapAxe')||{}).value||'';
+  var lieu=((eid('chapLieu')||{}).value||'').trim();
+  var vict=parseInt((eid('chapVict')||{}).value)||1;
+  var grav=(eid('chapGrav')||{}).value||'critique';
+  var sec=sapSecouristes.find(function(s){return s.actif;})||{nom:'Secouriste',id:'SEC-TRN'};
+  var sig={id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' — '+lieu:''),type:terrainSignalType,victimes:vict,gravite:grav,signaleur:sec.nom,t:nowShort(),st:'actif',coord:sapGpsCoords?sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O':'--'};
+  sapSignals.unshift(sig);
+  sapLog(sec.nom,'SIGNAL_TERRAIN',axe,terrainSignalType+' '+vict+' victimes');
+  simulateNotifDests(terrainSignalType.indexOf('INCENDIE')>=0?'INCENDIE':terrainSignalType==='NOYADE'?'NOYADE':'ACCIDENT',axe);
+  if(sec.signalements!==undefined)sec.signalements++;
+  addAdminLog('TERRAIN','Signal terrain: '+terrainSignalType+' '+axe);
+  toast('Signal envoyé! Services alertés.','#00C262');
+  closeModal();
+  navTerrain('mes');
+}
+function terrainGetGPS(){
+  var el=eid('t-gps-txt');if(el)el.textContent='Localisation GPS en cours...';
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      function(p){sapGpsCoords={lat:p.coords.latitude,lon:p.coords.longitude,acc:Math.round(p.coords.accuracy)};if(el)el.textContent='GPS: '+p.coords.latitude.toFixed(4)+'N '+p.coords.longitude.toFixed(4)+'O (±'+Math.round(p.coords.accuracy)+'m)';toast('Position GPS obtenue ✓','#00C262');},
+      function(){sapGpsCoords={lat:14.693,lon:-17.450,acc:15};if(el)el.textContent='GPS simulé: 14.6930N 17.4500O ±15m';},
+      {timeout:6000}
+    );
+  } else {if(el)el.textContent='GPS non disponible';}
+}
+
+/* ══════════════════════════════════════════════
+   COUS — SALLE D'OPÉRATIONS COORDINATEUR
+══════════════════════════════════════════════ */
+var cousOpsTab='overview';
+function rCousOpsCenter(v){
+  v.appendChild(moduleIntro('COUS','SALLE D\'OPÉRATIONS — COORDINATEUR SANITAIRE','#9B6EF3',
+    'Hub central de coordination pour les JOJ 2026. Vue temps réel de tous les incidents, services déployés, stocks critiques et alertes sanitaires. Outil principal du Coordinateur COUS et des superviseurs médicaux.',
+    ['Vue ops temps réel','Dispatch multi-services','Carte incidents','Alertes critiques','Statistiques JOJ'],
+    ['Médecins COUS','Admin santé','MSAS','SAMU','OMS']));
+
+  var critiques=cousIncidents.filter(function(c){return c.gravite==='critique';});
+  var active=cousIncidents.filter(function(c){return c.st!=='ferme';});
+  v.appendChild(kpiGrid([
+    ['Incidents actifs',String(active.length),'#FF5449','en cours'],
+    ['Critiques P1',String(critiques.length),'#FF5449','urgence'],
+    ['Urgents P2',String(cousIncidents.filter(function(c){return c.gravite==='urgent';}).length),'#FB923C',''],
+    ['Alertes',String(cousAlerts.length),'#FBBF24','actives'],
+    ['Interventions/j','47','#3B8AE8','24h'],
+    ['Niveau alerte',critiques.length>1?'ROUGE':critiques.length===1?'ORANGE':'VERT',critiques.length>1?'#FF5449':critiques.length===1?'#FB923C':'#00C262',''],
+  ],6));
+
+  /* Tabs */
+  var tbar=mk('div','tab-bar');
+  [['overview','Vue globale'],['map','Carte live'],['dispatch','Dispatch'],['alertes','Alertes'],['stats','Statistiques']].forEach(function(t){
+    var tb=mk('button','tab'+(cousOpsTab===t[0]?' on':''));
+    tb.textContent=t[1];
+    (function(tid){tb.onclick=function(){cousOpsTab=tid;nav('cous');};})(t[0]);
+    tbar.appendChild(tb);
+  });
+  var mainPan=mk('div','panel');mainPan.style.marginBottom='0';mainPan.appendChild(tbar);
+
+  if(cousOpsTab==='overview'){
+    renderCousOverview(mainPan);
+  } else if(cousOpsTab==='map'){
+    renderCousMap(mainPan);
+  } else if(cousOpsTab==='dispatch'){
+    renderCousDispatch(mainPan);
+  } else if(cousOpsTab==='alertes'){
+    renderCousAlertes(mainPan);
+  } else if(cousOpsTab==='stats'){
+    renderCousStats(mainPan);
+  }
+
+  v.appendChild(mainPan);
+}
+
+function renderCousOverview(pan){
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr 300px;gap:10px;padding:10px';
+  /* Col 1: Incidents actifs */
+  var incCol=mk('div');incCol.style.cssText='display:flex;flex-direction:column;gap:8px';
+  var icHeader=mk('div','ph');icHeader.innerHTML='<span class="pt" style="color:#9B6EF3"><i class="ti ti-alert-triangle" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Incidents actifs</span>'+
+    '<div style="display:flex;gap:5px"><span class="live-badge"><span class="dot-live"></span>LIVE</span><button onclick="openAddCousModal()" class="btn btn-r" style="font-size:7.5px;padding:2px 8px"><i class="ti ti-plus" style="font-size:9px" aria-hidden="true"></i> DÉCLARER</button></div>';
+  var incList=mk('div');incList.style.maxHeight='380px';incList.style.overflow='auto';
+  cousIncidents.filter(function(c){return c.st!=='ferme';}).forEach(function(inc){
+    var gc=inc.gravite==='critique'?'#FF5449':inc.gravite==='urgent'?'#FB923C':'#FBBF24';
+    var card=mk('div');card.style.cssText='padding:10px 12px;border-radius:8px;background:'+gc+'08;border-left:3px solid '+gc+';margin-bottom:7px;border-top:1px solid '+gc+'20;border-right:1px solid '+gc+'20;border-bottom:1px solid '+gc+'20';
+    card.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px">'+
+      '<span style="font-size:8px;font-weight:700;color:'+gc+';background:'+gc+'15;padding:2px 7px;border-radius:4px;border:1px solid '+gc+'30">'+inc.gravite.toUpperCase()+'</span>'+
+      '<span style="font-family:monospace;font-size:8px;color:var(--amber)">'+inc.t+'</span></div>'+
+      '<div style="font-size:12px;font-weight:700;color:var(--text)">'+inc.type+'</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin-top:2px"><i class="ti ti-map-pin" style="font-size:9px" aria-hidden="true"></i> '+inc.lieu+'</div>'+
+      '<div style="font-size:9px;color:var(--blue);margin-top:3px">Équipes: '+inc.equipes.join(', ')+'</div>';
+    var acts=mk('div');acts.style.cssText='display:flex;gap:5px;margin-top:7px';
+    var closeBtn=mk('button','btn btn-g');closeBtn.style.cssText='font-size:7.5px;padding:2px 8px';closeBtn.textContent='CLÔTURER';
+    (function(iid){closeBtn.onclick=function(){cousIncidents=cousIncidents.map(function(c){return c.id===iid?Object.assign({},c,{st:'ferme'}):c;});toast('Incident clôturé');nav('cous');};})(inc.id);
+    var editBtn=mk('button','btn btn-b');editBtn.style.cssText='font-size:7.5px;padding:2px 8px';editBtn.innerHTML='<i class="ti ti-edit" style="font-size:9px" aria-hidden="true"></i>';
+    (function(iid){editBtn.onclick=function(){editCous(iid);};})(inc.id);
+    acts.appendChild(closeBtn);acts.appendChild(editBtn);card.appendChild(acts);
+    incList.appendChild(card);
+  });
+  if(!cousIncidents.filter(function(c){return c.st!=='ferme';}).length){
+    incList.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted)"><i class="ti ti-check" style="font-size:30px;display:block;margin-bottom:8px;color:var(--g2)" aria-hidden="true"></i><div>Aucun incident actif</div></div>';
+  }
+  incCol.appendChild(icHeader);incCol.appendChild(incList);grid.appendChild(incCol);
+
+  /* Col 2: Services status */
+  var svcCol=mk('div');svcCol.style.cssText='display:flex;flex-direction:column;gap:8px';
+  var sph=mk('div','ph');sph.innerHTML='<span class="pt" style="color:#3B8AE8"><i class="ti ti-headset" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Services COUS</span>';
+  svcCol.appendChild(sph);
+  var sGrid=mk('div','cous-svc-grid');
+  [{nom:'SAMU',n:'15',c:'#FF5449',ico:'ti-ambulance',dispo:4,total:6},{nom:'Pompiers',n:'18',c:'#FB923C',ico:'ti-flame',dispo:5,total:7},
+   {nom:'Police',n:'17',c:'#3B8AE8',ico:'ti-shield',dispo:12,total:15},{nom:'SMUR',n:'+221 33 869 00 00',c:'#FF5449',ico:'ti-heart-rate-monitor',dispo:2,total:3},
+   {nom:'CNTS',n:'+221 33 XXX XX XX',c:'#9B6EF3',ico:'ti-droplet-filled-2',dispo:null,total:null},{nom:'MSAS',n:'+221 33 XXX XX XX',c:'#00C262',ico:'ti-building',dispo:null,total:null}
+  ].forEach(function(s){
+    var card=mk('div','cous-svc-card');
+    card.innerHTML='<div style="width:36px;height:36px;border-radius:9px;background:'+s.c+'14;border:1px solid '+s.c+'30;display:flex;align-items:center;justify-content:center;margin:0 auto 7px"><i class="ti '+s.ico+'" style="font-size:16px;color:'+s.c+'" aria-hidden="true"></i></div>'+
+      '<div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px">'+s.nom+'</div>'+
+      '<div style="font-family:monospace;font-size:9px;color:'+s.c+'">'+s.n+'</div>'+
+      (s.dispo!==null?'<div style="font-size:9px;color:var(--g2);margin-top:3px;font-weight:700">'+s.dispo+'/'+s.total+' dispo</div>':'<div style="font-size:9px;color:var(--muted);margin-top:3px">Disponible</div>');
+    (function(nom,num){card.onclick=function(){toast('Appel '+nom+' ('+num+')');addAdminLog('COUS','Appel: '+nom);};})(s.nom,s.n);
+    sGrid.appendChild(card);
+  });
+  svcCol.appendChild(sGrid);
+  /* Alertes rapides */
+  var alTitle=mk('div','ph');alTitle.innerHTML='<span class="pt" style="color:#FBBF24;font-size:10px"><i class="ti ti-bell" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Alertes critiques</span>';
+  svcCol.appendChild(alTitle);
+  cousAlerts.slice(0,3).forEach(function(a){
+    var row=mk('div');row.style.cssText='padding:7px 12px;border-bottom:1px solid var(--br2);display:flex;gap:8px;align-items:start';
+    row.innerHTML='<div style="width:6px;height:6px;border-radius:50%;background:'+a.c+';flex-shrink:0;margin-top:3px;animation:pulse .8s infinite"></div>'+
+      '<div><div style="font-size:9px;font-weight:700;color:'+a.c+'">'+a.type.replace(/_/g,' ')+'</div><div style="font-size:10px;color:var(--text);margin-top:1px">'+a.msg+'</div><div style="font-size:8px;color:var(--muted)">'+a.t+'</div></div>';
+    svcCol.appendChild(row);
+  });
+  grid.appendChild(svcCol);
+
+  /* Col 3: Journal ops */
+  var logCol=mk('div');logCol.style.cssText='display:flex;flex-direction:column';
+  var lph=mk('div','ph');lph.innerHTML='<span class="pt" style="color:var(--teal);font-size:10px"><i class="ti ti-terminal-2" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Journal opérations</span><span class="live-badge"><span class="dot-live"></span>LIVE</span>';
+  logCol.appendChild(lph);
+  var logBody=mk('div','scroll');logBody.style.cssText='flex:1;max-height:500px;overflow-y:auto';
+  adminLogs.slice(0,25).forEach(function(l){
+    var row=mk('div','log-row');row.style.cssText='padding:5px 12px;border-bottom:1px solid var(--br2);display:grid;grid-template-columns:36px 50px 1fr;gap:5px;align-items:start';
+    row.innerHTML='<span style="font-family:monospace;font-size:8px;color:var(--amber)">'+l.t+'</span>'+
+      '<span style="font-size:8px;font-weight:700;color:'+(['ALERTE P1','SANG','LIT'].includes(l.src)?'#FF5449':l.src==='COUS'?'#9B6EF3':l.src==='SAP'?'#FBBF24':'var(--muted)')+'">'+l.src+'</span>'+
+      '<span style="font-size:10px;color:var(--text)">'+l.msg+'</span>';
+    logBody.appendChild(row);
+  });
+  logCol.appendChild(logBody);grid.appendChild(logCol);
+  pan.appendChild(grid);
+}
+
+function renderCousMap(pan){
+  var ph=mk('div','ph');ph.innerHTML='<span class="pt" style="color:#9B6EF3"><i class="ti ti-map-2" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Carte incidents actifs — Dakar</span><span class="live-badge"><span class="dot-live"></span>LIVE</span>';pan.appendChild(ph);
+  var mapBody=mk('div');mapBody.style.cssText='background:var(--mapbg);position:relative;overflow:hidden';
+  var sl=mk('div','scanline');mapBody.appendChild(sl);
+  var NS='http://www.w3.org/2000/svg';var svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 700 320');svg.setAttribute('width','100%');svg.style.display='block';
+  var svgS='<text x="8" y="16" fill="rgba(148,163,184,.35)" font-size="7" font-family="monospace">COUS DAKAR — SALLE OPS — INCIDENTS TEMPS RÉEL</text>';
+  svgS+='<path d="M30 300 Q100 265 170 235 Q240 205 300 180 Q360 155 430 130 Q490 108 560 85" stroke="rgba(148,163,184,.12)" fill="none" stroke-width="2.5"/>';
+  svgS+='<path d="M80 310 Q130 280 180 260 Q230 240 280 220" stroke="rgba(148,163,184,.08)" fill="none" stroke-width="1.5" stroke-dasharray="5 4"/>';
+  /* Sites JOJ */
+  [{x:300,y:160,lbl:'STADE LSS'},{x:420,y:110,lbl:'ARENA'},{x:550,y:170,lbl:'VILLAGE ATLH.'},{x:190,y:200,lbl:'CHU DAKAR'}].forEach(function(s){
+    svgS+='<rect x="'+(s.x-38)+'" y="'+(s.y-12)+'" width="76" height="24" rx="4" fill="rgba(59,130,246,.08)" stroke="rgba(59,130,246,.2)" stroke-width="1"/>';
+    svgS+='<text x="'+s.x+'" y="'+(s.y+4)+'" fill="rgba(148,163,184,.5)" font-size="7" font-family="monospace" text-anchor="middle">'+s.lbl+'</text>';
+  });
+  /* Incidents */
+  var gravColors={critique:'#FF5449',urgent:'#FB923C',modere:'#FBBF24',leger:'#00C262'};
+  var incPositions=[[340,220],[160,280],[430,180],[260,240],[480,260],[200,160]];
+  cousIncidents.filter(function(c){return c.st!=='ferme';}).slice(0,6).forEach(function(inc,i){
+    var p=incPositions[i]||[350,200];var c=gravColors[inc.gravite]||'#64748B';
+    svgS+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="10" fill="'+c+'" opacity=".9"/>';
+    if(inc.gravite==='critique')svgS+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="18" fill="none" stroke="'+c+'" stroke-width="1.5" opacity=".5"><animate attributeName="r" values="10;22;10" dur="1.5s" repeatCount="indefinite"/></circle>';
+    svgS+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.5" fill="#fff" opacity=".95"/>';
+    svgS+='<text x="'+(p[0]+14)+'" y="'+(p[1]+4)+'" fill="'+c+'" font-size="8" font-family="monospace" font-weight="700">'+inc.type.slice(0,10)+'</text>';
+  });
+  /* Ambulances */
+  ambData.filter(function(a){return a.st==='en_mission';}).forEach(function(amb){
+    svgS+='<circle cx="'+amb.x+'" cy="'+amb.y+'" r="6" fill="#FF5449" opacity=".7"/>';
+    svgS+='<text x="'+(amb.x+9)+'" y="'+(amb.y+3)+'" fill="#FF5449" font-size="7" font-family="monospace">'+amb.id.split('-')[0]+'-'+amb.id.split('-')[1]+'</text>';
+  });
+  /* Légende */
+  svgS+='<text x="8" y="310" fill="rgba(148,163,184,.4)" font-size="7" font-family="monospace">● Critique ● Urgent ● Modéré  ● AMB en mission</text>';
+  svg.innerHTML=svgS;mapBody.appendChild(svg);
+  /* Filtres */
+  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:6px;padding:7px 12px;border-top:1px solid var(--br2);flex-wrap:wrap;align-items:center';
+  filterRow.innerHTML='<span style="font-size:9px;color:var(--muted);font-weight:700">Filtre:</span>';
+  ['Tous','Critique','Urgent','Modéré'].forEach(function(f){
+    var fb=mk('button');fb.style.cssText='font-size:9px;padding:3px 10px;border-radius:12px;border:1px solid var(--br);background:var(--s1);cursor:pointer;color:var(--muted);font-family:var(--font);transition:all .15s';
+    fb.textContent=f;fb.onclick=function(){toast('Filtre: '+f);};filterRow.appendChild(fb);
+  });
+  mapBody.appendChild(filterRow);pan.appendChild(mapBody);
+}
+
+function renderCousDispatch(pan){
+  var ph=mk('div','ph');ph.innerHTML='<span class="pt" style="color:#9B6EF3"><i class="ti ti-send" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Dispatch rapide</span>';pan.appendChild(ph);
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px';
+  /* Véhicules dispo */
+  var v1=mk('div');v1.innerHTML='<div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Véhicules disponibles</div>';
+  ambData.filter(function(a){return a.st==='disponible';}).forEach(function(amb){
+    var c=ambTypeColors[amb.type]||'#64748B';
+    var row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--kpi-bg);border:1px solid var(--glassborder);margin-bottom:6px';
+    row.innerHTML='<i class="ti '+ambTypeIcons[amb.type]+'" style="font-size:16px;color:'+c+'" aria-hidden="true"></i>'+
+      '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:var(--text)">'+amb.id+'</div><div style="font-size:9px;color:var(--muted)">'+amb.sector+'</div></div>'+
+      '<div style="width:6px;height:6px;border-radius:50%;background:var(--g2);box-shadow:0 0 5px var(--g2)"></div>';
+    var dispBtn=mk('button','btn btn-g');dispBtn.style.cssText='font-size:7.5px;padding:3px 9px';dispBtn.textContent='DÉPÊCHER';
+    (function(aid,anom){dispBtn.onclick=function(){toast(anom+' dépêché!');addAdminLog('COUS','Dispatch: '+anom);editAmbStatus(aid,'en_mission');nav('cous');};})(amb.id,amb.id);
+    row.appendChild(dispBtn);v1.appendChild(row);
+  });
+  /* Incidents sans équipe */
+  var v2=mk('div');v2.innerHTML='<div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Incidents à dispatcher</div>';
+  cousIncidents.filter(function(c){return c.st!=='ferme'&&c.equipes.includes('A confirmer')||c.equipes.includes('En dispatch');}).forEach(function(inc){
+    var gc=inc.gravite==='critique'?'#FF5449':'#FB923C';
+    var row=mk('div');row.style.cssText='padding:9px 11px;border-radius:8px;background:'+gc+'08;border:1px solid '+gc+'25;margin-bottom:6px';
+    row.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;font-weight:700;color:var(--text)">'+inc.type+'</span><span style="font-size:9px;color:var(--amber);font-family:monospace">'+inc.t+'</span></div>'+
+      '<div style="font-size:10px;color:var(--muted)">'+inc.lieu+'</div>';
+    v2.appendChild(row);
+  });
+  grid.appendChild(v1);grid.appendChild(v2);pan.appendChild(grid);
+}
+
+function renderCousAlertes(pan){
+  var ph=mk('div','ph');ph.innerHTML='<span class="pt" style="color:#FBBF24"><i class="ti ti-bell-ringing" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Alertes critiques COUS</span><span class="live-badge"><span class="dot-live"></span>LIVE</span>';pan.appendChild(ph);
+  cousAlerts.forEach(function(a){
+    var row=mk('div');row.style.cssText='padding:10px 14px;border-bottom:1px solid var(--br2);border-left:3px solid '+a.c+';display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start';
+    row.innerHTML='<div style="text-align:center"><div style="font-family:monospace;font-size:9px;color:var(--amber)">'+a.t+'</div><div style="width:8px;height:8px;border-radius:50%;background:'+a.c+';margin:4px auto;animation:pulse .8s infinite"></div></div>'+
+      '<div><div style="font-size:10px;font-weight:700;color:'+a.c+';margin-bottom:3px">'+a.type.replace(/_/g,' ')+'</div>'+
+      '<div style="font-size:11px;color:var(--text);line-height:1.5">'+a.msg+'</div></div>';
+    pan.appendChild(row);
+  });
+  /* Ajouter alerte */
+  var addBtn=mk('button','btn btn-a');addBtn.style.cssText='margin:10px 12px;font-size:9px';addBtn.innerHTML='<i class="ti ti-plus" style="font-size:10px" aria-hidden="true"></i> NOUVELLE ALERTE';
+  addBtn.onclick=function(){
+    cousAlerts.unshift({t:nowShort(),type:'ALERTE_MANUELLE',msg:'Nouvelle alerte déclarée par coordinateur',c:'#FF5449'});
+    toast('Alerte ajoutée','#FF5449');nav('cous');
+  };
+  pan.appendChild(addBtn);
+}
+
+function renderCousStats(pan){
+  var ph=mk('div','ph');ph.innerHTML='<span class="pt" style="color:#3B8AE8"><i class="ti ti-chart-bar" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Statistiques JOJ 2026</span>';pan.appendChild(ph);
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px';
+  [{lbl:'Interventions/j',val:'47',c:'#3B8AE8',sub:'vs 42 hier'},{lbl:'Tps réponse moy.',val:'6m32s',c:'#00C262',sub:'objectif <8min'},{lbl:'Hospitalisations',val:'12',c:'#FB923C',sub:'3 CHU · 9 autres'},
+   {lbl:'Transferts',val:'5',c:'#9B6EF3',sub:'inter-hôpitaux'},{lbl:'Actes SAMU',val:'23',c:'#FF5449',sub:'sur 24h'},{lbl:'Actes Pompiers',val:'24',c:'#FB923C',sub:'sur 24h'},
+   {lbl:'Signaux SAP',val:String(sapSignals.length),c:'#FBBF24',sub:'secouristes terrain'},
+   {lbl:'Amb. en mission',val:String(ambData.filter(function(a){return a.st==='en_mission';}).length),c:'#FF5449',sub:'sur '+ambData.length},
+   (function(){
+     var td=litsData.reduce(function(n,h){var d=0,t=0;h.services.forEach(function(s){d+=s.dispo;t+=s.total;});return{d:n.d+(t-d),t:n.t+t};},{d:0,t:0});
+     return {lbl:'Taux occupation',val:Math.round(td.d/td.t*100)+'%',c:'#9B6EF3',sub:'lits hôpitaux'};
+   })()
+  ].forEach(function(k){
+    var d=mk('div');d.style.cssText='padding:12px;border-radius:9px;background:var(--kpi-bg);border:1px solid var(--glassborder);text-align:center';
+    d.innerHTML='<div style="font-family:monospace;font-size:22px;font-weight:700;color:'+k.c+'">'+k.val+'</div>'+
+      '<div style="font-size:9px;font-weight:700;color:var(--text);margin-top:4px">'+k.lbl+'</div>'+
+      '<div style="font-size:8px;color:var(--muted);margin-top:2px">'+k.sub+'</div>';
+    grid.appendChild(d);
+  });
+  pan.appendChild(grid);
+  /* Rapport journalier */
+  var rph=mk('div','ph');rph.innerHTML='<span class="pt" style="color:#3B8AE8;font-size:10px">Rapport quotidien JOJ</span>';pan.appendChild(rph);
+  var rBody=mk('div');rBody.style.cssText='padding:12px 14px';
+  var today=new Date();
+  rBody.innerHTML='<div style="font-size:11px;line-height:1.8;color:var(--text)">'+
+    '<strong>Rapport COUS — '+today.toLocaleDateString('fr-FR')+'</strong><br>'+
+    '• 47 interventions (SOS: 23 SAMU · 24 Pompiers)<br>'+
+    '• Temps moyen de réponse: 6m32s (objectif: &lt;8min) <span style="color:var(--g2)">✓</span><br>'+
+    '• 12 hospitalisations dont 2 critiques<br>'+
+    '• Stock sang: alerte O- (18 poches, seuil 20) <span style="color:#FF5449">⚠</span><br>'+
+    '• Température max Stade LSS: 36.2°C — protocole WBGT activé<br>'+
+    '• Aucun incident sécuritaire majeur signalé<br>'+
+    '</div>';
+  var dlBtn=mk('button','btn btn-b');dlBtn.style.cssText='margin-top:10px;font-size:9px';dlBtn.innerHTML='<i class="ti ti-download" style="font-size:10px" aria-hidden="true"></i> EXPORTER RAPPORT PDF';
+  dlBtn.onclick=function(){toast('Export rapport (simulation)');addAdminLog('COUS','Rapport exporté');};
+  rBody.appendChild(dlBtn);pan.appendChild(rBody);
+}
+function doLogout(){ doLogoutDB(); }
 /* ── THEME TOGGLE ── */
 var currentTheme='dark';
 function toggleTheme(){
@@ -1149,9 +2414,14 @@ function toggleTheme(){
 var NAV_RENDERS={
   m1:rM1,m2:rM2,geo:rGeo,m3:rM3,m4:rM4,m5:rM5,m6:rM6,m7:rM7,m8:rM8,m9:rM9,m10:rM10,
   adm:rAdm,qr:rQR,inn:rInn,sec:rSec,
-  lit:rLit,sang:rSang,amb:rAmb,cous:rCous,sap:rSap,
+  lit:rLit,sang:rSang,amb:rAmb,
+  cous:rCousOpsCenter,   /* Salle d'opérations coordinateur */
+  sap:rSap,
   triage:rTriage,sentinel:rSentinel,heat:rHeat,nexcom:rNexcom,
-  pharma:rPharma,accesso:rAccesso,cyber:rCyber,evacia:rEvacIA
+  pharma:rPharma,
+  acc:rAccesso,
+  accesso:rAccesso,
+  cyber:rCyber,evacia:rEvacIA
 };
 function nav(id){
   curMod=id;
@@ -1322,9 +2592,6 @@ function renderM2UrgList(el){
   if(!active.length){var e=mk('div');e.style.cssText='padding:20px;text-align:center;color:var(--muted);font-size:11px';e.innerHTML='<i class="ti ti-check" style="font-size:22px;display:block;margin-bottom:6px;color:var(--g2)" aria-hidden="true"></i>Aucune urgence<br><br><span style="font-size:10px">Cliquez Declarer pour tester</span>';el.appendChild(e);return;}
   active.forEach(function(u){var row=mk('div','li');row.style.cssText='flex-direction:column;align-items:start';var top=mk('div');top.style.cssText='display:flex;gap:5px;align-items:center;width:100%;margin-bottom:2px';top.innerHTML='<span class="badge" style="color:'+(u.crit==='P1'?'var(--red)':'var(--orange)')+';border-color:'+(u.crit==='P1'?'rgba(239,68,68,.4)':'rgba(249,115,22,.4)')+';background:'+(u.crit==='P1'?'rgba(239,68,68,.15)':'rgba(249,115,22,.15)')+'">'+u.crit+'</span><span style="font-size:10px;font-weight:500;flex:1">'+u.titre+'</span>';var rb=mk('button','btn btn-g');rb.style.cssText='font-size:7px;padding:1px 5px';rb.textContent='RESOUDRE';(function(uid){rb.onclick=function(){resUrg(uid);};})(u.id);top.appendChild(rb);var loc=mk('div');loc.style.cssText='font-size:9px;color:var(--muted)';loc.textContent=u.lieu;row.appendChild(top);row.appendChild(loc);el.appendChild(row);});
 }
-function declUrg(type,crit){var t={med:'Malaise athlete',acc:'Collision navette',inc:'Incendie local',cat:'Effondrement structure',san:'Cas groupes maladie'};var l={med:'Stade LSS',acc:'Route VDN km4',inc:'Arena Dakar',cat:'Stade LSS Tribune',san:'Village Athletes'};urgences.unshift({id:'U'+Date.now(),titre:t[type]||type,lieu:l[type]||'Site',crit:crit,st:'ouvert'});addAdminLog(crit==='P1'?'ALERTE P1':'URGENCE',(t[type]||type)+' '+(l[type]||''));if(type==='cat')togOrsec('PLAN_ROUGE','Plan Rouge');if(type==='san')togOrsec('PLAN_SAN','ORSEC Sanitaire');toast(crit==='P1'?'ALERTE P1 declenchee!':'Urgence declaree');nav('m2');}
-function resUrg(id){urgences=urgences.map(function(u){return u.id===id?Object.assign({},u,{st:'resolu'}):u;});addAdminLog('SYS','Urgence resolue: '+id.slice(-4));toast('Urgence resolue');nav('m2');}
-function togOrsec(id,nom){orsecActif=orsecActif===id?null:id;addAdminLog('ORSEC',orsecActif?nom+' declenche':'Plan leve');toast(orsecActif?nom+' DECLENCHE':'Plan ORSEC leve',orsecActif?'#ef4444':'#10b981');nav('m2');}
 
 /* ══════════════════════════════════════════════
    GEO — GeoEmergency GPS
@@ -3022,58 +4289,283 @@ var assistanceRequests = [
   {id:'REQ-002',nom:'Visiteur age — Assistance marche',site:'Arena Dakar',t:'09:48',st:'en_attente'},
 ];
 function rAccesso(v) {
-  v.appendChild(moduleIntro('ACC','ACCESSIBILITE PMR — TEMPS REEL','#14b8a6',
-    'Navigation accessible en temps reel pour athletes et visiteurs en situation de handicap. Statut ascenseurs, rampes, emplacements PMR sur tous les sites. Dispatch assistance prioritaire. Conformite normes CIO accessibilite 2026 et normes IPC (Comite International Paralympique).',
-    ['Ascenseurs temps reel','Rampes libres','Places PMR','Assistance dispatch','Normes CIO IPC'],
+  v.appendChild(moduleIntro('ACC','ACCESSIBILITÉ PMR — TEMPS RÉEL','#14C9B8',
+    'Navigation accessible en temps réel pour athlètes et visiteurs en situation de handicap. Statut ascenseurs, rampes, emplacements PMR sur tous les sites JOJ. Dispatch assistance prioritaire. Conformité CIO 2026 et normes IPC (Comité International Paralympique).',
+    ['Ascenseurs live','Rampes libres','Places PMR','Dispatch assistance','CIO/IPC conformité'],
     ['Public PMR','Admin','COUS','Volontaires']));
-  var pannCount=accessoItems.filter(function(a){return a.st==='en_panne'||a.st==='encombree';}).length;
+
+  var pannCount = accessoItems.filter(function(a){return a.st==='en_panne'||a.st==='encombree';}).length;
+  var opCount = accessoItems.length - pannCount;
+  var pendingReqs = assistanceRequests.filter(function(r){return r.st==='en_attente';}).length;
+
   v.appendChild(kpiGrid([
-    ['Points accessibles',String(accessoItems.length),'#14b8a6',''],
-    ['En alerte',String(pannCount),'#ef4444','panne ou encombre'],
-    ['Operationnels',String(accessoItems.length-pannCount),'#10b981',''],
-    ['Demandes assist.',String(assistanceRequests.length),'#f59e0b','actives'],
+    ['Équipements',String(accessoItems.length),'#14C9B8','sites JOJ'],
+    ['Opérationnels',String(opCount),'#00C262','OK'],
+    ['En alerte',String(pannCount),'#FF5449','panne/encombré'],
+    ['Demandes actives',String(pendingReqs),'#FBBF24','en attente'],
   ],4));
-  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 260px;gap:10px';
-  var leftPanel=mk('div','panel');
-  leftPanel.innerHTML='<div class="ph"><span class="pt" style="color:var(--teal)"><i class="ti ti-accessible" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Equipements accessibilite</span></div>';
-  var typeIcons={'ascenseur':'ti-elevator','rampe':'ti-ramp','place_pmr':'ti-wheelchair'};
-  var typeLabels={'ascenseur':'Ascenseur','rampe':'Rampe PMR','place_pmr':'Place PMR'};
+
+  /* ── SITES SVG ── */
+  var sitePanel = mk('div','panel');
+  var sph = mk('div','ph');
+  sph.innerHTML = '<span class="pt" style="color:#14C9B8"><i class="ti ti-accessible" style="font-size:11px;margin-right:5px;vertical-align:-1px" aria-hidden="true"></i>Carte accessibilité sites JOJ</span><span class="live-badge"><span class="dot-live" style="background:#14C9B8"></span>LIVE</span>';
+  sitePanel.appendChild(sph);
+
+  var NS = 'http://www.w3.org/2000/svg';
+  var svgWrap = mk('div');
+  svgWrap.style.cssText = 'background:var(--mapbg);position:relative;overflow:hidden;padding:12px';
+  var svg = document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 500 160');
+  svg.setAttribute('width','100%');
+  svg.style.display = 'block';
+
+  var sites = [
+    {x:100,y:80,nom:'Stade LSS',asc:2,ramp:2,pmr:4,ok:true},
+    {x:250,y:80,nom:'Arena Dakar',asc:2,ramp:1,pmr:3,ok:true},
+    {x:400,y:80,nom:'Village Athlètes',asc:1,ramp:2,pmr:2,ok:false},
+  ];
+  var svgStr = '';
+  sites.forEach(function(s){
+    var c = s.ok ? '#14C9B8' : '#FBBF24';
+    var bg = s.ok ? 'rgba(20,201,184,.12)' : 'rgba(251,191,36,.12)';
+    svgStr += '<rect x="'+(s.x-70)+'" y="'+(s.y-40)+'" width="140" height="80" rx="8" fill="'+bg+'" stroke="'+c+'" stroke-width="1.5"/>';
+    svgStr += '<text x="'+s.x+'" y="'+(s.y-22)+'" fill="'+c+'" font-size="9" font-family="monospace" text-anchor="middle" font-weight="700">'+s.nom+'</text>';
+    svgStr += '<text x="'+(s.x-50)+'" y="'+(s.y+0)+'" fill="'+c+'" font-size="8" font-family="monospace">🛗 '+s.asc+' asc.</text>';
+    svgStr += '<text x="'+(s.x-50)+'" y="'+(s.y+14)+'" fill="'+c+'" font-size="8" font-family="monospace">♿ '+s.ramp+' rampes</text>';
+    svgStr += '<text x="'+(s.x-50)+'" y="'+(s.y+28)+'" fill="'+c+'" font-size="8" font-family="monospace">🅿 '+s.pmr+' places PMR</text>';
+    if(!s.ok){
+      svgStr += '<text x="'+s.x+'" y="'+(s.y-8)+'" fill="#FBBF24" font-size="7.5" font-family="monospace" text-anchor="middle">⚠ ALERTE</text>';
+    }
+  });
+  svgStr += '<text x="4" y="155" fill="rgba(148,163,184,.4)" font-size="7" font-family="monospace">Accessibilite CIO 2026 — mise a jour en temps reel</text>';
+  svg.innerHTML = svgStr;
+  svgWrap.appendChild(svg);
+  sitePanel.appendChild(svgWrap);
+  v.appendChild(sitePanel);
+
+  /* ── GRILLE EQUIPEMENTS + DEMANDES ── */
+  var mainGrid = mk('div');
+  mainGrid.style.cssText = 'display:grid;grid-template-columns:1fr 280px;gap:10px';
+
+  /* Equipements */
+  var leftPanel = mk('div','panel');
+  var lph = mk('div','ph');
+  lph.innerHTML = '<span class="pt" style="color:#14C9B8"><i class="ti ti-list-check" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Équipements par type</span>';
+  var addItemBtn = mk('button','btn btn-t');
+  addItemBtn.style.cssText = 'font-size:8px;padding:3px 9px';
+  addItemBtn.innerHTML = '<i class="ti ti-plus" style="font-size:9px" aria-hidden="true"></i> AJOUTER';
+  addItemBtn.onclick = function(){
+    openModal('<div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:14px"><i class="ti ti-accessible" style="font-size:14px;margin-right:5px;color:#14C9B8" aria-hidden="true"></i>AJOUTER ÉQUIPEMENT PMR</div>'+
+      '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Type</label><select class="sel" id="pmrType" style="width:100%"><option value="ascenseur">Ascenseur</option><option value="rampe">Rampe PMR</option><option value="place_pmr">Place PMR</option></select></div>'+
+      '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Identifiant</label><input class="inp" id="pmrId" placeholder="Ex: ASC-04"/></div>'+
+      '<div style="margin-bottom:14px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Localisation</label><input class="inp" id="pmrLoc" placeholder="Ex: Arena Dakar — Tribune Sud"/></div>'+
+      '<div style="display:flex;gap:8px"><button onclick="saveAccessoItem()" class="btn btn-t" style="flex:1;justify-content:center;font-size:11px;padding:8px">ENREGISTRER</button><button onclick="closeModal()" class="btn" style="padding:8px 16px;color:var(--muted);border-color:var(--br)">Annuler</button></div>');
+  };
+  lph.appendChild(addItemBtn);
+  leftPanel.appendChild(lph);
+
+  var typeIcons = {ascenseur:'ti-elevator',rampe:'ti-arrow-up',place_pmr:'ti-wheelchair'};
+  var typeLabels = {ascenseur:'Ascenseurs',rampe:'Rampes PMR',place_pmr:'Places PMR'};
+  var typeColors = {ascenseur:'#3B8AE8',rampe:'#9B6EF3',place_pmr:'#14C9B8'};
+  var stColors = {operationnel:'#00C262',libre:'#00C262',dispo:'#00C262',en_panne:'#FF5449',encombree:'#FBBF24',occupe:'#FBBF24'};
+
   ['ascenseur','rampe','place_pmr'].forEach(function(type){
-    var items=accessoItems.filter(function(a){return a.type===type;});
-    var sec=mk('div');sec.style.cssText='padding:4px 12px;font-size:8px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:1px;background:rgba(20,184,166,.06);border-bottom:1px solid rgba(20,184,166,.1)';
-    sec.textContent=typeLabels[type]+' ('+items.length+')';leftPanel.appendChild(sec);
+    var items = accessoItems.filter(function(a){return a.type === type;});
+    var tc = typeColors[type];
+    var secRow = mk('div');
+    secRow.style.cssText = 'padding:6px 13px;font-size:9px;font-weight:700;color:'+tc+';text-transform:uppercase;letter-spacing:1.5px;background:'+tc+'10;border-bottom:1px solid '+tc+'22;display:flex;justify-content:space-between';
+    secRow.innerHTML = '<span><i class="ti '+typeIcons[type]+'" style="font-size:9px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>'+typeLabels[type]+'</span><span style="font-weight:400;color:var(--muted)">'+items.length+' équipements</span>';
+    leftPanel.appendChild(secRow);
+
     items.forEach(function(item){
-      var row=mk('div','li');row.style.padding='8px 12px';
-      var ico=mk('div');ico.style.cssText='width:26px;height:26px;border-radius:5px;background:'+item.c+'18;border:1px solid '+item.c+'33;display:flex;align-items:center;justify-content:center;flex-shrink:0';
-      ico.innerHTML='<i class="ti '+typeIcons[item.type]+'" style="font-size:11px;color:'+item.c+'" aria-hidden="true"></i>';
-      var info=mk('div');info.style.flex='1';info.innerHTML='<div style="font-size:10px;font-weight:500">'+item.id+' — '+item.loc+'</div>';
-      var st=mk('span');st.style.cssText='font-size:8px;font-weight:700;color:'+item.c+';white-space:nowrap';st.textContent=item.st.replace('_',' ').toUpperCase();
-      row.appendChild(ico);row.appendChild(info);row.appendChild(st);
-      if(item.st==='en_panne'||item.st==='encombree'){var signBtn=mk('button','btn btn-r');signBtn.style.cssText='font-size:7.5px;padding:2px 7px;margin-left:7px';signBtn.textContent='SIGNALER';(function(iid){signBtn.onclick=function(){toast('Intervention technique signale: '+iid);addAdminLog('ACCESSO','Signalement: '+iid);};})(item.id);row.appendChild(signBtn);}
+      var sc = stColors[item.st] || '#64748B';
+      var row = mk('div','li');
+      row.style.padding = '9px 13px';
+
+      var ico = mk('div');
+      ico.style.cssText = 'width:28px;height:28px;border-radius:6px;background:'+sc+'14;border:1px solid '+sc+'33;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+      ico.innerHTML = '<i class="ti '+(typeIcons[item.type]||'ti-accessible')+'" style="font-size:12px;color:'+sc+'" aria-hidden="true"></i>';
+
+      var info = mk('div');
+      info.style.flex = '1';
+      info.innerHTML = '<div style="font-size:11px;font-weight:600;color:var(--text)">'+item.id+'</div>'+
+        '<div style="font-size:9px;color:var(--muted);margin-top:1px">'+item.loc+'</div>';
+
+      var stSpan = mk('span');
+      stSpan.style.cssText = 'font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;background:'+sc+'15;color:'+sc+';border:1px solid '+sc+'30;white-space:nowrap';
+      stSpan.textContent = item.st.replace(/_/g,' ').toUpperCase();
+
+      row.appendChild(ico);
+      row.appendChild(info);
+      row.appendChild(stSpan);
+
+      if(item.st === 'en_panne' || item.st === 'encombree'){
+        var fixBtn = mk('button','btn btn-r');
+        fixBtn.style.cssText = 'font-size:7.5px;padding:2px 8px;margin-left:6px';
+        fixBtn.innerHTML = '<i class="ti ti-tool" style="font-size:9px" aria-hidden="true"></i> SIGNALER';
+        (function(iid){
+          fixBtn.onclick = function(){
+            toast('⚠ Intervention signalée: '+iid,'#FBBF24');
+            addAdminLog('PMR','Signalement panne: '+iid);
+          };
+        })(item.id);
+        row.appendChild(fixBtn);
+      }
+
+      var delBtn = mk('button','btn btn-r');
+      delBtn.style.cssText = 'font-size:7.5px;padding:2px 5px;margin-left:4px';
+      delBtn.innerHTML = '<i class="ti ti-trash" style="font-size:9px" aria-hidden="true"></i>';
+      (function(iid){
+        delBtn.onclick = function(e){
+          e.stopPropagation();
+          if(confirm('Supprimer cet équipement ?')){
+            accessoItems = accessoItems.filter(function(a){return a.id !== iid;});
+            addAdminLog('PMR','Equipement supprimé: '+iid);
+            toast('Equipement supprimé','#FF5449');
+            nav('acc');
+          }
+        };
+      })(item.id);
+      row.appendChild(delBtn);
       leftPanel.appendChild(row);
     });
   });
-  grid.appendChild(leftPanel);
-  var rightCol=mk('div');rightCol.style.cssText='display:flex;flex-direction:column;gap:8px';
-  var reqPanel=mk('div','panel');
-  var rph=mk('div','ph');rph.innerHTML='<span class="pt" style="color:var(--teal);font-size:10px">Demandes assistance</span>';
-  var addReqBtn=mk('button','btn btn-t');addReqBtn.style.cssText='font-size:8px;padding:2px 7px';addReqBtn.textContent='+ DEMANDE';
-  addReqBtn.onclick=function(){toast('Nouvelle demande assistance enregistree');assistanceRequests.push({id:'REQ-'+String(Date.now()).slice(-3),nom:'Nouvelle demande',site:'Site JOJ',t:nowShort(),st:'en_attente'});nav('accesso');};
-  rph.appendChild(addReqBtn);reqPanel.appendChild(rph);
+
+  mainGrid.appendChild(leftPanel);
+
+  /* Colonne droite */
+  var rightCol = mk('div');
+  rightCol.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+
+  /* Demandes assistance */
+  var reqPanel = mk('div','panel');
+  var rph = mk('div','ph');
+  rph.innerHTML = '<span class="pt" style="color:#14C9B8;font-size:10px"><i class="ti ti-user-heart" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Demandes assistance</span>';
+  var addReqBtn = mk('button','btn btn-t');
+  addReqBtn.style.cssText = 'font-size:8px;padding:3px 9px';
+  addReqBtn.innerHTML = '<i class="ti ti-plus" style="font-size:9px" aria-hidden="true"></i> NEW';
+  addReqBtn.onclick = function(){
+    assistanceRequests.push({id:'REQ-'+String(Date.now()).slice(-3),nom:'Nouvelle demande assistance',site:'Site JOJ',t:nowShort(),st:'en_attente'});
+    toast('Demande enregistrée');
+    addAdminLog('PMR','Nouvelle demande assistance');
+    nav('acc');
+  };
+  rph.appendChild(addReqBtn);
+  reqPanel.appendChild(rph);
+
   assistanceRequests.forEach(function(req){
-    var sc=req.st==='pris_en_charge'?'#10b981':'#f59e0b';
-    var row=mk('div','li');row.style.padding='8px 12px';
-    var info=mk('div');info.style.flex='1';info.innerHTML='<div style="font-size:10px;font-weight:500">'+req.nom+'</div><div style="font-size:8px;color:var(--muted)">'+req.site+' · '+req.t+'</div>';
-    var st=mk('span');st.style.cssText='font-size:8px;font-weight:700;color:'+sc+';white-space:nowrap';st.textContent=req.st.replace('_',' ').toUpperCase();
-    row.appendChild(info);row.appendChild(st);
-    if(req.st==='en_attente'){var dispBtn=mk('button','btn btn-t');dispBtn.style.cssText='font-size:7.5px;padding:2px 7px;margin-left:7px';dispBtn.textContent='ASSIGNER';(function(rid){dispBtn.onclick=function(){assistanceRequests=assistanceRequests.map(function(r){return r.id===rid?Object.assign({},r,{st:'pris_en_charge'}):r;});toast('Volontaire assigne');nav('accesso');};})(req.id);row.appendChild(dispBtn);}
+    var sc = req.st === 'pris_en_charge' ? '#00C262' : '#FBBF24';
+    var row = mk('div','li');
+    row.style.cssText = 'flex-direction:column;align-items:start;padding:9px 12px';
+
+    var top = mk('div');
+    top.style.cssText = 'display:flex;gap:6px;align-items:center;width:100%;margin-bottom:3px';
+    var dot = mk('div','dot');
+    dot.style.background = sc;
+    if(req.st === 'en_attente') dot.style.animation = 'pulse .8s infinite';
+    var idSpan = mk('span');
+    idSpan.style.cssText = 'font-family:monospace;font-size:8px;color:var(--muted)';
+    idSpan.textContent = req.id;
+    var tSpan = mk('span');
+    tSpan.style.cssText = 'margin-left:auto;font-family:monospace;font-size:8px;color:var(--amber)';
+    tSpan.textContent = req.t;
+    top.appendChild(dot); top.appendChild(idSpan); top.appendChild(tSpan);
+
+    var nm = mk('div');
+    nm.innerHTML = '<div style="font-size:10px;font-weight:600;color:var(--text)">'+req.nom+'</div>'+
+      '<div style="font-size:9px;color:var(--muted)">'+req.site+'</div>';
+
+    var stBadge = mk('span');
+    stBadge.style.cssText = 'font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;background:'+sc+'15;color:'+sc+';border:1px solid '+sc+'30;margin-top:4px;display:inline-block';
+    stBadge.textContent = req.st.replace(/_/g,' ').toUpperCase();
+
+    row.appendChild(top); row.appendChild(nm); row.appendChild(stBadge);
+
+    if(req.st === 'en_attente'){
+      var acts = mk('div');
+      acts.style.cssText = 'display:flex;gap:5px;margin-top:5px';
+      var dispBtn = mk('button','btn btn-t');
+      dispBtn.style.cssText = 'font-size:7.5px;padding:2px 8px';
+      dispBtn.innerHTML = '<i class="ti ti-user-check" style="font-size:9px" aria-hidden="true"></i> ASSIGNER';
+      (function(rid){
+        dispBtn.onclick = function(){
+          assistanceRequests = assistanceRequests.map(function(r){
+            return r.id === rid ? Object.assign({},r,{st:'pris_en_charge'}) : r;
+          });
+          toast('Volontaire assigné');
+          addAdminLog('PMR','Demande prise en charge: '+rid);
+          nav('acc');
+        };
+      })(req.id);
+      var closeReqBtn = mk('button','btn btn-r');
+      closeReqBtn.style.cssText = 'font-size:7.5px;padding:2px 8px';
+      closeReqBtn.textContent = 'CLORE';
+      (function(rid){
+        closeReqBtn.onclick = function(){
+          assistanceRequests = assistanceRequests.filter(function(r){return r.id !== rid;});
+          toast('Demande clôturée');
+          nav('acc');
+        };
+      })(req.id);
+      acts.appendChild(dispBtn); acts.appendChild(closeReqBtn);
+      row.appendChild(acts);
+    }
     reqPanel.appendChild(row);
   });
+
+  if(!assistanceRequests.length){
+    var empty = mk('div');
+    empty.style.cssText = 'padding:20px;text-align:center;color:var(--muted)';
+    empty.innerHTML = '<i class="ti ti-check" style="font-size:24px;display:block;margin-bottom:6px;color:var(--g2)" aria-hidden="true"></i><div style="font-size:11px">Aucune demande en attente</div>';
+    reqPanel.appendChild(empty);
+  }
+
   rightCol.appendChild(reqPanel);
-  var normPanel=mk('div','panel');normPanel.style.marginBottom='0';
-  normPanel.innerHTML='<div class="ph"><span class="pt" style="color:var(--teal);font-size:10px">Conformite CIO / IPC</span></div><div style="padding:10px 12px">' +
-    [['Ascenseurs fonctionnels','80%','#f97316'],['Rampes conformes','100%','#10b981'],['Places PMR couverts','94%','#10b981'],['Accompagnants PMR','Disponibles','#10b981'],['Guide audio','Actif','#10b981']].map(function(r){return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(59,130,246,.06);font-size:10px"><span style="color:var(--muted)">'+r[0]+'</span><span style="color:'+r[2]+';font-weight:700">'+r[1]+'</span></div>';}).join('')+'</div>';
-  rightCol.appendChild(normPanel);grid.appendChild(rightCol);v.appendChild(grid);
+
+  /* Conformité CIO/IPC */
+  var normPanel = mk('div','panel');
+  normPanel.style.marginBottom = '0';
+  var normPh = mk('div','ph');
+  normPh.innerHTML = '<span class="pt" style="color:#14C9B8;font-size:10px"><i class="ti ti-certificate" style="font-size:10px;margin-right:4px;vertical-align:-1px" aria-hidden="true"></i>Conformité CIO / IPC</span>';
+  normPanel.appendChild(normPh);
+
+  var normBody = mk('div');
+  normBody.style.padding = '10px 13px';
+  [
+    ['Ascenseurs fonctionnels','80%','#FBBF24',80],
+    ['Rampes accessibles','100%','#00C262',100],
+    ['Places PMR couvertes','94%','#00C262',94],
+    ['Signalisation tactile','100%','#00C262',100],
+    ['Guide audio en place','100%','#00C262',100],
+    ['Pentest accessibilité','Prévu J-30','#FBBF24',60],
+  ].forEach(function(r){
+    var row = mk('div');
+    row.style.cssText = 'margin-bottom:8px';
+    row.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'+
+      '<span style="font-size:10px;color:var(--muted)">'+r[0]+'</span>'+
+      '<span style="font-size:10px;font-weight:700;color:'+r[2]+';font-family:monospace">'+r[1]+'</span></div>'+
+      '<div style="height:4px;background:var(--s1);border-radius:2px;overflow:hidden">'+
+      '<div style="width:'+r[3]+'%;height:100%;background:'+r[2]+';border-radius:2px;transition:width 1s ease"></div></div>';
+    normBody.appendChild(row);
+  });
+  normPanel.appendChild(normBody);
+  rightCol.appendChild(normPanel);
+  mainGrid.appendChild(rightCol);
+  v.appendChild(mainGrid);
+}
+
+/* Helper: save new accesso item */
+function saveAccessoItem(){
+  var type = (eid('pmrType')||{}).value || 'ascenseur';
+  var id2 = ((eid('pmrId')||{}).value || '').trim();
+  var loc = ((eid('pmrLoc')||{}).value || '').trim();
+  if(!id2 || !loc){toast('ID et localisation obligatoires','#FF5449');return;}
+  var tColors2 = {ascenseur:'#3B8AE8',rampe:'#9B6EF3',place_pmr:'#14C9B8'};
+  accessoItems.push({id:id2,type:type,loc:loc,st:'operationnel',c:tColors2[type]||'#14C9B8'});
+  addAdminLog('PMR','Équipement ajouté: '+id2);
+  toast('Équipement ajouté!');
+  closeModal();
+  nav('acc');
 }
 
 /* ══════════════════════════════════════════════
@@ -3212,7 +4704,10 @@ function rEvacIA(v) {
 }
 
 /* ── TIMERS ── */
-setInterval(function(){var c=eid('clk');if(c)c.textContent=nowStr();},1000);
+setInterval(function(){
+  var c=eid('clk');if(c)c.textContent=nowStr();
+  var tc=eid('tClk');if(tc)tc.textContent=nowStr().slice(0,5);
+},1000);
 setInterval(function(){sensors=sensors.map(function(s){var nv=Math.round(s.v+(Math.random()-.5)*2);return Object.assign({},s,{v:Math.max(s.v-5,Math.min(s.seuil+5,nv))});});if(curMod==='m9')nav('m9');},5000);
 setInterval(function(){var l=autoLogs[autoIdx%autoLogs.length];autoIdx++;addAdminLog(l[0],l[1]);addLogRow('m1Log',l[0],l[1]);},7000);
 
@@ -3510,9 +5005,45 @@ function simulateNotifDests(type,lieu){
   addAdminLog('SAP','Notifications: '+dests.join(', ')+' pour '+type+' — '+lieu);
 }
 
-/* ── INIT ── */
+/* ══════════════════════════════════════════════
+   INIT — Démarrage NEXKORD
+══════════════════════════════════════════════ */
 buildLoginStars();
 buildRoleChips();
+
+/* Initialiser Supabase */
+(async function(){
+  var connected = initSupabase();
+
+  if(connected){
+    /* Vérifier session existante (refresh de page) */
+    var hasSession = await checkExistingSession();
+    if(hasSession){
+      /* Session active → router directement */
+      eid('login-screen').style.display='none';
+      if(sapRole==='OPERATOR'){
+        eid('terrain-shell').classList.add('show');
+        navTerrain('signal');
+      } else if(sapRole==='VIEWER'){
+        eid('app-shell').classList.add('show');buildSidebar();nav('m4');
+      } else {
+        eid('app-shell').classList.add('show');buildSidebar();
+        nav(sapRole==='SUPER_ADMIN'?'m1':'cous');
+      }
+      wireDBFunctions();
+      return;
+    }
+  }
+
+  /* Afficher badge mode démo si Supabase non configuré */
+  if(!dbReady){
+    var demoNote=document.createElement('div');
+    demoNote.style.cssText='position:fixed;bottom:12px;right:12px;background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.3);border-radius:8px;padding:7px 12px;font-size:10px;color:#FB923C;font-family:var(--mono);z-index:500;letter-spacing:1px';
+    demoNote.innerHTML='MODE DÉMO · Configurez Supabase pour persister les données';
+    document.body.appendChild(demoNote);
+    setTimeout(function(){if(demoNote.parentNode)demoNote.parentNode.removeChild(demoNote);},6000);
+  }
+})();
 </script>
 </body>
 </html>
