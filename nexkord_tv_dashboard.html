@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NEXKORD — OPS CENTER TV</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=Share+Tech+Mono:wght@400&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#030810;--bg2:#070D19;--bg3:#0C1220;--panel:rgba(255,255,255,.025);--pb:rgba(255,255,255,.07);--text:#DDE6F4;--muted:#4A6080;--hint:#7A96B4;--samu:#FF3333;--pomp:#FF8800;--gend:#2266CC;--cous:#8844EE;--sante:#00AA66;--gold:#CC8800;--g:#007840;--red:#CC2211;--font:'Barlow Condensed',system-ui,sans-serif;--mono:'Share Tech Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased}
+.shell{display:grid;grid-template-rows:46px 3px 60px 6px 1fr 6px 190px 3px;height:100vh;width:100vw}
+.kente{background:repeating-linear-gradient(90deg,var(--g) 0,var(--g) 11px,var(--gold) 11px,var(--gold) 22px,var(--red) 22px,var(--red) 33px,rgba(255,255,255,.05) 33px,rgba(255,255,255,.05) 44px);animation:kente 2.8s linear infinite}
+@keyframes kente{0%{background-position:0}100%{background-position:44px}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--pb);display:flex;align-items:center;gap:0;padding:0 14px}
+.logo{font-family:var(--font);font-size:20px;font-weight:800;letter-spacing:2px;color:#fff;margin-right:20px}
+.logo em{color:var(--gold);font-style:normal}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;font-size:9px;font-weight:700;font-family:var(--mono);letter-spacing:1px;border:1px solid;margin-right:6px}
+.ldot{width:5px;height:5px;border-radius:50%;animation:pulse .9s infinite}
+.tb-r{margin-left:auto;display:flex;align-items:center;gap:14px}
+.tb-time{font-family:var(--mono);font-size:18px;color:#fff;letter-spacing:2px}
+.tb-wx{font-family:var(--mono);font-size:12px;color:var(--gold)}
+.cbtns{display:flex;gap:5px}
+.cbtn{width:26px;height:26px;border-radius:5px;border:1px solid var(--pb);background:var(--panel);color:var(--hint);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .14s}
+.cbtn:hover{background:rgba(255,255,255,.07);color:#fff}
+.cbtn.on{border-color:rgba(204,136,0,.5);color:var(--gold);background:rgba(204,136,0,.08)}
+.svc-tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--bg2);border-bottom:1px solid var(--pb)}
+.svc-tab{display:flex;align-items:center;justify-content:center;gap:9px;height:60px;cursor:pointer;border-bottom:3px solid transparent;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);transition:all .18s;position:relative;user-select:none}
+.svc-tab:hover{background:rgba(255,255,255,.025);color:var(--hint)}
+.svc-tab.on{color:#fff}
+.svc-tab i{font-size:20px}
+.svc-tab small{font-family:var(--mono);font-size:9px;display:block;margin-top:1px;opacity:.6}
+.tab-cnt{position:absolute;top:9px;right:12px;min-width:16px;height:16px;border-radius:8px;font-size:8px;font-weight:700;font-family:var(--mono);display:none;align-items:center;justify-content:center;padding:0 3px}
+.main{display:grid;grid-template-columns:300px 1fr 260px;gap:5px;padding:5px;overflow:hidden}
+.pnl{background:var(--panel);border:1px solid var(--pb);border-radius:9px;overflow:hidden;display:flex;flex-direction:column}
+.ph{padding:9px 13px 7px;border-bottom:1px solid var(--pb);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.pt{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--hint);font-family:var(--mono);display:flex;align-items:center;gap:5px}
+.pbdy{flex:1;overflow-y:auto}
+.pbdy::-webkit-scrollbar{width:2px}
+.pbdy::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08)}
+.map-wrap{background:#020609;position:relative;overflow:hidden;border-radius:8px;flex:1}
+.scanline{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.04) 0,rgba(0,0,0,.04) 1px,transparent 1px,transparent 3px)}
+.cwrap{padding:8px;flex:1;min-height:0;position:relative}
+.amb-row{display:flex;align-items:center;gap:7px;padding:6px 11px;border-bottom:1px solid rgba(255,255,255,.03);font-size:10px}
+.g-row{display:flex;align-items:center;gap:7px;padding:5px 11px;border-bottom:1px solid rgba(255,255,255,.03);font-size:10px}
+.gbar{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.gfill{height:100%;border-radius:3px;transition:width .8s ease}
+.bottom{display:grid;grid-template-columns:1fr 240px 360px;gap:5px;padding:0 5px 5px}
+.ticker{background:rgba(255,51,51,.07);border:1px solid rgba(255,51,51,.18);border-radius:7px;overflow:hidden;display:flex;align-items:center}
+.tick-lbl{background:rgba(255,51,51,.25);padding:7px 13px;font-size:9px;font-weight:700;color:#fff;letter-spacing:2px;white-space:nowrap;font-family:var(--mono);flex-shrink:0}
+.tick-track{flex:1;overflow:hidden;height:34px;display:flex;align-items:center}
+.tick-inner{display:flex;align-items:center;gap:0;animation:ticker 30s linear infinite;white-space:nowrap}
+.tick-item{padding:0 24px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px}
+.uc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--pb);flex:1}
+.uc-cell{background:var(--bg3);padding:6px 10px;text-align:center}
+.uc-n{font-family:var(--mono);font-size:18px;font-weight:500;line-height:1}
+.uc-l{font-size:8px;font-family:var(--mono);letter-spacing:1px;color:var(--muted);margin-top:2px}
+.iop-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px}
+.iop-card{background:rgba(255,255,255,.025);border:1px solid var(--pb);border-radius:7px;padding:8px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.iop-card:hover{background:rgba(255,255,255,.05);transform:translateY(-1px)}
+.iop-card.ok{border-color:rgba(0,170,102,.35);background:rgba(0,170,102,.05)}
+.iop-card.warn{border-color:rgba(204,136,0,.35);background:rgba(204,136,0,.05)}
+.iop-icon{font-size:20px;display:block;margin-bottom:4px}
+.iop-n{font-size:8px;font-weight:700;letter-spacing:.8px;color:var(--hint);font-family:var(--mono);line-height:1.3}
+.iop-m{font-family:var(--mono);font-size:9px;margin-top:3px;font-weight:500}
+#cfg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:900;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+#cfg .box{background:#0C1220;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:26px;width:460px}
+#cfg input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:9px 12px;color:#fff;font-family:var(--mono);font-size:11px;outline:none;margin-top:5px}
+#cfg label{font-size:9px;color:var(--muted);letter-spacing:1.5px;font-family:var(--mono);display:block;margin-top:12px}
+#toast{position:fixed;top:56px;right:14px;z-index:999;background:var(--bg2);border:1px solid var(--pb);border-radius:9px;padding:11px 16px;font-size:12px;font-weight:600;color:#fff;display:none;animation:fadeIn .25s ease;box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:320px}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="logo">NEX<em>KORD</em></div>
+  <div class="chip" style="color:#4ADE80;border-color:rgba(74,222,128,.3);background:rgba(74,222,128,.07)"><span class="ldot" style="background:#4ADE80"></span>OPS CENTER LIVE</div>
+  <div class="chip" id="dbChip" style="color:#93C5FD;border-color:rgba(147,197,253,.25);background:rgba(147,197,253,.05)"><i class="ti ti-database" style="font-size:10px"></i>MODE DEMO</div>
+  <div class="chip" style="color:var(--gold);border-color:rgba(204,136,0,.25);background:rgba(204,136,0,.05)"><i class="ti ti-map-pin" style="font-size:10px"></i>DAKAR - JOJ 2026</div>
+  <span id="luTxt" style="font-size:11px;color:var(--muted);margin-left:12px"></span>
+  <div class="tb-r">
+    <div class="tb-wx" id="wbgtTb">&#9728; 36.2C H74%</div>
+    <div class="tb-time" id="clk">--:--:--</div>
+    <div class="cbtns">
+      <button class="cbtn on" id="btnRot" onclick="toggleRot()" title="Auto-rotation (R)"><i class="ti ti-player-play"></i></button>
+      <button class="cbtn" onclick="goFS()" title="Plein ecran (F)"><i class="ti ti-maximize"></i></button>
+      <button class="cbtn" onclick="document.getElementById('cfg').style.display='flex'" title="Supabase (C)"><i class="ti ti-database"></i></button>
+      <button class="cbtn" onclick="showIop()" title="Interoperabilite (I)"><i class="ti ti-plug"></i></button>
+    </div>
+  </div>
+</header>
+<div class="kente"></div>
+<div class="svc-tabs">
+  <div class="svc-tab on" id="tab-samu" onclick="switchTab('samu')" style="border-bottom-color:var(--samu)"><i class="ti ti-ambulance" style="color:var(--samu)"></i><div>SAMU<small id="ss-samu">3 dispo</small></div><span class="tab-cnt" id="cnt-samu" style="background:rgba(255,51,51,.2);color:var(--samu)">0</span></div>
+  <div class="svc-tab" id="tab-pomp" onclick="switchTab('pomp')"><i class="ti ti-flame" style="color:var(--pomp)"></i><div>POMPIERS<small id="ss-pomp">2 dispo</small></div><span class="tab-cnt" id="cnt-pomp" style="background:rgba(255,136,0,.2);color:var(--pomp)">0</span></div>
+  <div class="svc-tab" id="tab-gend" onclick="switchTab('gend')"><i class="ti ti-shield-lock" style="color:var(--gend)"></i><div>GENDARMERIE<small id="ss-gend">8 brigades</small></div><span class="tab-cnt" id="cnt-gend" style="background:rgba(34,102,204,.2);color:var(--gend)">0</span></div>
+  <div class="svc-tab" id="tab-cous" onclick="switchTab('cous')"><i class="ti ti-headset" style="color:var(--cous)"></i><div>COUS<small id="ss-cous">3 incidents</small></div><span class="tab-cnt" id="cnt-cous" style="background:rgba(136,68,238,.2);color:var(--cous)">0</span></div>
+  <div class="svc-tab" id="tab-sante" onclick="switchTab('sante')"><i class="ti ti-heart-rate-monitor" style="color:var(--sante)"></i><div>SANTE<small id="ss-sante">0 alertes</small></div><span class="tab-cnt" id="cnt-sante" style="background:rgba(0,170,102,.2);color:var(--sante)">0</span></div>
+</div>
+<div></div>
+<div class="main">
+  <div style="display:flex;flex-direction:column;gap:5px">
+    <div class="pnl" style="flex:1">
+      <div class="ph"><span class="pt" id="mapPt" style="color:var(--samu)"><i class="ti ti-map-2"></i>CARTE INCIDENTS</span><span style="font-family:var(--mono);font-size:8px;color:var(--g);display:flex;align-items:center;gap:3px"><span class="ldot" style="background:var(--g)"></span>LIVE</span></div>
+      <div class="map-wrap"><div class="scanline"></div><svg id="map" viewBox="0 0 300 190" width="100%" height="100%" style="display:block"></svg></div>
+    </div>
+    <div class="pnl" style="flex-shrink:0">
+      <div class="ph"><span class="pt" id="kpiPt">METRIQUES SAMU</span></div>
+      <div id="svcKpis" style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--pb)"></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:5px">
+    <div class="pnl" style="flex:1.3"><div class="ph"><span class="pt"><i class="ti ti-chart-line"></i>INTERVENTIONS 12H</span></div><div class="cwrap"><canvas id="cLine"></canvas></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;flex:1">
+      <div class="pnl"><div class="ph"><span class="pt"><i class="ti ti-chart-donut-3"></i>TYPES INCIDENTS</span></div><div class="cwrap"><canvas id="cDonut"></canvas></div></div>
+      <div class="pnl"><div class="ph"><span class="pt"><i class="ti ti-chart-bar"></i>LITS HOPITAUX</span></div><div class="cwrap"><canvas id="cBeds"></canvas></div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:5px">
+    <div class="pnl" style="flex:1"><div class="ph"><span class="pt"><i class="ti ti-ambulance"></i>VEHICULES GPS</span></div><div class="pbdy" id="ambPnl"></div></div>
+    <div class="pnl" style="flex:1"><div class="ph"><span class="pt" style="color:var(--samu)"><i class="ti ti-droplet-filled"></i>STOCKS SANG</span></div><div class="pbdy" id="sangPnl"></div></div>
+    <div class="pnl" style="flex-shrink:0"><div class="ph"><span class="pt" style="color:var(--gold)"><i class="ti ti-sun"></i>WBGT SITES JOJ</span></div><div id="wbgtPnl" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:8px"></div></div>
+  </div>
+</div>
+<div></div>
+<div class="bottom">
+  <div class="ticker"><div class="tick-lbl">ALERTES</div><div class="tick-track"><div class="tick-inner" id="tickInner"></div></div></div>
+  <div class="pnl"><div class="ph"><span class="pt">UNITES TERRAIN</span></div><div class="uc-grid" id="ucGrid"></div></div>
+  <div class="pnl"><div class="ph"><span class="pt"><i class="ti ti-plug"></i>INTEROPERABILITE</span><span id="iopCount" style="font-size:9px;color:var(--g);font-family:var(--mono)"></span></div><div class="iop-grid" id="iopGrid"></div></div>
+</div>
+<div class="kente"></div>
+</div>
+<div id="toast"></div>
+<div id="cfg">
+  <div class="box">
+    <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:18px;display:flex;align-items:center;gap:9px"><i class="ti ti-database" style="color:var(--gold)"></i>Connexion Supabase Realtime</div>
+    <label>PROJECT URL</label><input id="cfgUrl" placeholder="https://xxxxxxxxxxxx.supabase.co"/>
+    <label>ANON KEY</label><input id="cfgKey" placeholder="eyJhbGci..." type="password"/>
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button onclick="connectDB()" style="flex:1;padding:11px;background:var(--g);border:none;border-radius:7px;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px">CONNECTER</button>
+      <button onclick="document.getElementById('cfg').style.display='none'" style="padding:11px 16px;background:transparent;border:1px solid rgba(255,255,255,.1);border-radius:7px;color:var(--hint);cursor:pointer;font-family:var(--font)">Annuler</button>
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:var(--muted);line-height:1.6">Supabase.com &gt; Projet &gt; Settings &gt; API. Parametres sauvegardes dans localStorage.</div>
+  </div>
+</div>
+<script>
+var SURL=localStorage.getItem('nx_tv_url')||'DEMO',SKEY=localStorage.getItem('nx_tv_key')||'',db=null,dbOk=false,curTab='samu',autoRot=true,rotTmr=null,TABS=['samu','pomp','gend','cous','sante'],rotIdx=0,charts={};
+function eid(id){return document.getElementById(id);}
+function toast(msg,c,d){var el=eid('toast');el.textContent=msg;el.style.color=c||'#fff';el.style.borderColor=(c||'rgba(255,255,255,.2)');el.style.display='block';clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},d||3200);}
+function initDB(){if(SURL==='DEMO'||!SURL||typeof supabase==='undefined')return false;try{db=supabase.createClient(SURL,SKEY);dbOk=true;var ch=eid('dbChip');if(ch){ch.innerHTML='<i class="ti ti-bolt" style="font-size:10px"></i>SUPABASE LIVE';ch.style.color='#4ADE80';ch.style.borderColor='rgba(74,222,128,.3)';}setupRT();loadDB();toast('Supabase connecte!','#4ADE80');return true;}catch(e){return false;}}
+function connectDB(){SURL=eid('cfgUrl').value.trim();SKEY=eid('cfgKey').value.trim();localStorage.setItem('nx_tv_url',SURL);localStorage.setItem('nx_tv_key',SKEY);eid('cfg').style.display='none';initDB();}
+function setupRT(){if(!dbOk)return;['sap_signals','cous_incidents','lits_services','sang_stocks','ambulances'].forEach(function(t){db.channel('tv_'+t).on('postgres_changes',{event:'*',schema:'public',table:t},function(p){loadDB();if(p.eventType==='INSERT'&&(p.new.gravite==='critique'||p.new.criticite==='P1')){toast('INCIDENT CRITIQUE: '+(p.new.type||'Incident')+' '+(p.new.lieu||p.new.axe||''),'#FF3333',6000);flashAlert();}eid('luTxt').textContent='MAJ: '+new Date().toTimeString().slice(0,8);}).subscribe();});}
+async function loadDB(){if(!dbOk)return;try{var r=await Promise.all([db.from('sap_signals').select('*').order('created_at',{ascending:false}).limit(40),db.from('cous_incidents').select('*').neq('statut','ferme').order('created_at',{ascending:false}).limit(20),db.from('lits_services').select('*').order('hopital_nom'),db.from('sang_stocks').select('*').order('groupe'),db.from('ambulances').select('*').order('id')]);if(r[0].data)D.signals=r[0].data;if(r[1].data)D.incidents=r[1].data.map(function(c){return{id:c.code||c.id,type:c.type,lieu:c.lieu,gravite:c.gravite,st:c.statut,t:new Date(c.created_at).toTimeString().slice(0,5)};});if(r[2].data){var g={};r[2].data.forEach(function(row){if(!g[row.hopital_id]){g[row.hopital_id]={nom:row.hopital_nom,services:[]};}g[row.hopital_id].services.push({s:row.service,total:row.total,dispo:row.disponibles});});D.lits=Object.values(g);}if(r[3].data)D.sang=r[3].data;if(r[4].data)D.ambs=r[4].data.map(function(a){return{id:a.id,type:a.type,statut:a.statut};});refreshAll();}catch(e){console.error(e);}}
+var D={signals:[{id:'SIG-001',type:'CHOC_GRAVE',axe:'VDN km12',gravite:'critique',statut:'actif',t:'09:14'},{id:'SIG-002',type:'RENVERSEMENT',axe:'Route Rufisque',gravite:'urgent',statut:'pris_en_charge',t:'09:02'},{id:'SIG-003',type:'INCENDIE',axe:'Stade LSS',gravite:'urgent',statut:'actif',t:'08:47'},{id:'SIG-004',type:'MALAISE',axe:'Village Atlh.',gravite:'modere',statut:'actif',t:'07:55'}],incidents:[{id:'COUS-001',type:'Accident route',lieu:'VDN km12',gravite:'critique',st:'en_cours',t:'09:14'},{id:'COUS-002',type:'Malaise collectif',lieu:'Stade LSS',gravite:'urgent',st:'en_cours',t:'08:45'},{id:'COUS-003',type:'Intox. alimentaire',lieu:'Village Atlh.',gravite:'modere',st:'en_surveillance',t:'07:22'}],lits:[{nom:'CHU Dakar',services:[{s:'Urgences',total:40,dispo:8},{s:'Reanim.',total:12,dispo:1},{s:'Chirurgie',total:80,dispo:22}]},{nom:'Hop. Principal',services:[{s:'Urgences',total:30,dispo:4},{s:'Reanim.',total:10,dispo:2}]},{nom:'Hop. Fann',services:[{s:'Urgences',total:25,dispo:6},{s:'Neuro.',total:40,dispo:11}]},{nom:'Hop. Thies',services:[{s:'Urgences',total:18,dispo:5}]}],sang:[{groupe:'O+',stock:142,seuil_alerte:50},{groupe:'O-',stock:18,seuil_alerte:20},{groupe:'A+',stock:87,seuil_alerte:30},{groupe:'A-',stock:11,seuil_alerte:15},{groupe:'B+',stock:64,seuil_alerte:25},{groupe:'B-',stock:9,seuil_alerte:12},{groupe:'AB+',stock:22,seuil_alerte:10},{groupe:'AB-',stock:4,seuil_alerte:8}],ambs:[{id:'AMB-01',type:'samu',statut:'disponible'},{id:'AMB-02',type:'samu',statut:'en_mission'},{id:'AMB-03',type:'samu',statut:'disponible'},{id:'AMB-04',type:'smur',statut:'disponible'},{id:'AMB-05',type:'smur',statut:'en_mission'},{id:'FPT-01',type:'pompiers',statut:'disponible'},{id:'FPT-02',type:'pompiers',statut:'disponible'},{id:'CRX-01',type:'croix_rouge',statut:'disponible'}],iop:[{n:'Supabase\nRealtime',ico:'ti-database',s:'ok',m:'~180ms',c:'#4ADE80'},{n:'WhatsApp\nBot SAP',ico:'ti-brand-whatsapp',s:'ok',m:'Actif',c:'#25D366'},{n:'REST API\nNEXKORD',ico:'ti-api',s:'ok',m:'99.9%',c:'#4ADE80'},{n:'CAP OASIS\nv1.2',ico:'ti-bell-ringing',s:'ok',m:'Sync OK',c:'#93C5FD'},{n:'HL7 FHIR R4\nOMS',ico:'ti-activity-heartbeat',s:'warn',m:'Config.',c:'#FCD34D'},{n:'Twilio SMS',ico:'ti-message-circle',s:'ok',m:'Actif',c:'#4ADE80'},{n:'GPS\nVehicules',ico:'ti-map-pin',s:'ok',m:'15s',c:'#4ADE80'},{n:'MSAS\nSenegal',ico:'ti-building-hospital',s:'warn',m:'Attente',c:'#FCD34D'},{n:'CERT-SN\nCyber',ico:'ti-shield-lock',s:'ok',m:'Actif',c:'#4ADE80'},{n:'ANAMS\nMETEO',ico:'ti-cloud',s:'ok',m:'Live',c:'#4ADE80'}]};
+var SVC={samu:{c:'var(--samu)',lbl:'SAMU',kpis:function(){return[{n:String(D.ambs.filter(function(a){return a.type==='samu'&&a.statut==='disponible';}).length),l:'Ambulances dispo',c:'#4ADE80'},{n:String(D.ambs.filter(function(a){return a.type==='samu'&&a.statut==='en_mission';}).length),l:'En mission',c:'var(--samu)'},{n:String(D.incidents.filter(function(i){return i.gravite==='critique';}).length),l:'Incidents P1',c:'var(--samu)'},{n:'6m32s',l:'Tps moyen',c:'#4ADE80'}];}},pomp:{c:'var(--pomp)',lbl:'POMPIERS',kpis:function(){return[{n:String(D.ambs.filter(function(a){return a.type==='pompiers'&&a.statut==='disponible';}).length),l:'Vehicules dispo',c:'#4ADE80'},{n:'3',l:'Incendies 24h',c:'var(--pomp)'},{n:'12',l:'Secours 24h',c:'#93C5FD'},{n:'4m18s',l:'Tps depart',c:'#4ADE80'}];}},gend:{c:'var(--gend)',lbl:'GENDARMERIE',kpis:function(){return[{n:'8',l:'Brigades actives',c:'#4ADE80'},{n:'127',l:'Agents deployes',c:'#93C5FD'},{n:'16',l:'Sites securises',c:'var(--gend)'},{n:'0',l:'Incidents secu.',c:'#4ADE80'}];}},cous:{c:'var(--cous)',lbl:'COUS',kpis:function(){return[{n:String(D.incidents.filter(function(i){return i.st==='en_cours';}).length),l:'Incidents actifs',c:'var(--samu)'},{n:String(D.incidents.filter(function(i){return i.gravite==='critique';}).length),l:'Critiques P1',c:'var(--samu)'},{n:'47',l:'Interventions 24h',c:'var(--cous)'},{n:'12',l:'Hospitalisations',c:'#FCD34D'}];}},sante:{c:'var(--sante)',lbl:'SANTE',kpis:function(){var td=0,tt=0;D.lits.forEach(function(h){h.services.forEach(function(s){td+=s.dispo;tt+=s.total;});});var cs=D.sang.filter(function(s){return s.stock<s.seuil_alerte;}).length;return[{n:String(td),l:'Lits disponibles',c:'#4ADE80'},{n:String(tt-td),l:'Lits occupes',c:'#FCD34D'},{n:String(cs),l:'Alertes sang',c:cs>0?'var(--samu)':'#4ADE80'},{n:tt>0?Math.round(td/tt*100)+'%':'--',l:'Taux libre',c:'var(--sante)'}];}}};
+Chart.defaults.color='#4A6080';Chart.defaults.borderColor='rgba(255,255,255,.04)';Chart.defaults.font.family="'Share Tech Mono',monospace";Chart.defaults.font.size=9;
+function buildCharts(){var hrs=[];for(var i=11;i>=0;i--){var h=new Date();h.setHours(h.getHours()-i);hrs.push(h.getHours()+'h');}charts.line=new Chart(eid('cLine').getContext('2d'),{type:'line',data:{labels:hrs,datasets:[{label:'SAMU',data:[2,3,1,4,6,5,4,6,8,4,3,2],borderColor:'#FF3333',backgroundColor:'rgba(255,51,51,.08)',tension:.4,fill:true,pointRadius:2,borderWidth:1.8},{label:'Pompiers',data:[1,2,1,3,5,3,2,4,6,3,2,1],borderColor:'#FF8800',backgroundColor:'rgba(255,136,0,.07)',tension:.4,fill:true,pointRadius:2,borderWidth:1.5},{label:'COUS',data:[1,1,0,1,2,2,1,1,2,1,1,1],borderColor:'#8844EE',backgroundColor:'rgba(136,68,238,.05)',tension:.4,fill:true,pointRadius:2,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},plugins:{legend:{position:'top',labels:{boxWidth:10,padding:10,usePointStyle:true}}},scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{maxRotation:0}},y:{grid:{color:'rgba(255,255,255,.03)'},beginAtZero:true}}}});charts.donut=new Chart(eid('cDonut').getContext('2d'),{type:'doughnut',data:{labels:['Accident','Malaise','Incendie','Chute','Intox.','Autre'],datasets:[{data:[38,24,12,10,8,8],backgroundColor:['#FF3333','#FF8800','#FCD34D','#8844EE','#2266CC','#4A6080'],borderColor:'#030810',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{boxWidth:9,padding:7,font:{size:9}}}}}});var bl=D.lits.map(function(h){return h.nom.replace('Hopital ','Hop. ');});charts.beds=new Chart(eid('cBeds').getContext('2d'),{type:'bar',data:{labels:bl,datasets:[{label:'Dispo',data:D.lits.map(function(h){return h.services.reduce(function(n,s){return n+s.dispo;},0);}),backgroundColor:'rgba(0,170,102,.65)',borderRadius:2},{label:'Occupes',data:D.lits.map(function(h){return h.services.reduce(function(n,s){return n+(s.total-s.dispo);},0);}),backgroundColor:'rgba(255,51,51,.35)',borderRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:9,padding:8}}},scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:30,font:{size:8}}},y:{stacked:true,grid:{color:'rgba(255,255,255,.03)'}}}}});}
+function updBeds(){if(!charts.beds)return;charts.beds.data.datasets[0].data=D.lits.map(function(h){return h.services.reduce(function(n,s){return n+s.dispo;},0);});charts.beds.data.datasets[1].data=D.lits.map(function(h){return h.services.reduce(function(n,s){return n+(s.total-s.dispo);},0);});charts.beds.update('none');}
+function drawMap(){var svg=eid('map');var gc={critique:'#FF3333',urgent:'#FF8800',modere:'#CC8800',leger:'#00AA66'};var S='<text x="3" y="9" fill="rgba(148,163,184,.18)" font-size="5.5" font-family="Share Tech Mono">DAKAR '+new Date().toTimeString().slice(0,8)+'</text>';S+='<path d="M8 182 Q55 150 105 128 Q155 108 195 90 Q235 72 285 55" stroke="rgba(148,163,184,.09)" fill="none" stroke-width="2"/>';[{x:185,y:78,l:'STADE LSS'},{x:255,y:53,l:'ARENA'},{x:160,y:127,l:'CHU DKR'},{x:90,y:110,l:'VILLAGE'}].forEach(function(s){S+='<rect x="'+(s.x-27)+'" y="'+(s.y-8)+'" width="54" height="16" rx="3" fill="rgba(34,102,204,.07)" stroke="rgba(34,102,204,.18)" stroke-width=".7"/>';S+='<text x="'+s.x+'" y="'+(s.y+3)+'" fill="rgba(148,163,184,.35)" font-size="5" font-family="Share Tech Mono" text-anchor="middle">'+s.l+'</text>';});var pos=[[195,138],[96,162],[258,126],[148,98],[232,162],[86,133],[272,88],[125,142]];D.incidents.slice(0,8).forEach(function(inc,i){var p=pos[i]||[155,118];var c=gc[inc.gravite]||'#64748B';S+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="8" fill="'+c+'" opacity=".85"/>';if(inc.gravite==='critique'){S+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="14" fill="none" stroke="'+c+'" stroke-width="1.2" opacity=".45"><animate attributeName="r" values="8;19;8" dur="1.4s" repeatCount="indefinite"/></circle>';}S+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.5" fill="#fff" opacity=".9"/>';S+='<text x="'+(p[0]+12)+'" y="'+(p[1]+3)+'" fill="'+c+'" font-size="6.5" font-family="Share Tech Mono" font-weight="bold">'+inc.type.slice(0,9)+'</text>';});D.ambs.filter(function(a){return a.statut==='en_mission';}).forEach(function(a,i){var cx=75+i*48,cy=105+i*14;S+='<circle cx="'+cx+'" cy="'+cy+'" r="4.5" fill="#FF3333" opacity=".75"/>';S+='<text x="'+(cx+7)+'" y="'+(cy+3)+'" fill="#FF3333" font-size="5.5" font-family="Share Tech Mono">'+a.id.slice(0,6)+'</text>';});svg.innerHTML=S;}
+function drawAmb(){var el=eid('ambPnl');el.innerHTML='';var cols={samu:'#FF3333',smur:'#FF8800',pompiers:'#F59E0B',croix_rouge:'#4ADE80'};var icos={samu:'ti-ambulance',smur:'ti-heart-rate-monitor',pompiers:'ti-flame',croix_rouge:'ti-heart-plus'};D.ambs.forEach(function(a){var c=cols[a.type]||'#64748B';var sc=a.statut==='disponible'?'#4ADE80':a.statut==='en_mission'?'#FF3333':'#FCD34D';var row=document.createElement('div');row.className='amb-row';row.innerHTML='<div style="width:5px;height:5px;border-radius:50%;background:'+sc+';flex-shrink:0'+(a.statut==='en_mission'?';animation:pulse .8s infinite':'')+'"></div><i class="ti '+icos[a.type]+'" style="font-size:13px;color:'+c+';flex-shrink:0"></i><div style="flex:1"><div style="font-size:10px;font-weight:700;color:#fff">'+a.id+'</div><div style="font-size:8px;color:var(--muted);font-family:var(--mono)">'+a.type.toUpperCase()+'</div></div><div style="font-family:var(--mono);font-size:8px;font-weight:700;color:'+sc+'">'+(a.statut==='disponible'?'DISPO':a.statut==='en_mission'?'MISSION':'MAINT.')+'</div>';el.appendChild(row);});}
+function drawSang(){var el=eid('sangPnl');el.innerHTML='';D.sang.slice().sort(function(a,b){return(a.stock/a.seuil_alerte)-(b.stock/b.seuil_alerte);}).slice(0,7).forEach(function(s){var ratio=s.stock/s.seuil_alerte;var c=ratio<.6?'#FF3333':ratio<.9?'#FCD34D':'#4ADE80';var row=document.createElement('div');row.className='g-row';row.innerHTML='<div style="font-family:var(--mono);font-size:10px;font-weight:700;width:30px;color:#fff;flex-shrink:0">'+s.groupe+'</div><div class="gbar"><div class="gfill" style="width:'+Math.min(100,ratio*80)+'%;background:'+c+'"></div></div><div style="font-family:var(--mono);font-size:9px;color:'+c+';min-width:34px;text-align:right;font-weight:700">'+s.stock+'</div>'+(ratio<1?'<i class="ti ti-alert-triangle" style="font-size:10px;color:#FF3333;flex-shrink:0"></i>':'');el.appendChild(row);});}
+function drawWbgt(){var el=eid('wbgtPnl');el.innerHTML='';[{n:'Stade LSS',wbgt:32.4,risk:'ROUGE',c:'#FF3333'},{n:'Arena',wbgt:29.8,risk:'ORANGE',c:'#FF8800'},{n:'Village',wbgt:28.2,risk:'JAUNE',c:'#FCD34D'}].forEach(function(s){var d=document.createElement('div');d.style.cssText='background:rgba(255,255,255,.025);border:1px solid '+s.c+'22;border-radius:6px;padding:7px;text-align:center;border-top:2px solid '+s.c;d.innerHTML='<div style="font-size:8px;color:var(--muted);font-family:var(--mono)">'+s.n+'</div><div style="font-family:var(--mono);font-size:17px;font-weight:500;color:'+s.c+';margin:3px 0">'+s.wbgt+'</div><div style="font-size:7px;color:var(--muted)">WBGT C</div><div style="font-size:8px;font-weight:700;color:'+s.c+';margin-top:3px;letter-spacing:1px">'+s.risk+'</div>';el.appendChild(d);});}
+function drawIop(){var el=eid('iopGrid');el.innerHTML='';var ok=D.iop.filter(function(s){return s.s==='ok';}).length;eid('iopCount').textContent=ok+'/'+D.iop.length+' OK';D.iop.slice(0,5).forEach(function(s){var card=document.createElement('div');card.className='iop-card '+s.s;card.innerHTML='<i class="ti '+s.ico+' iop-icon" style="color:'+s.c+'"></i><div class="iop-n">'+s.n.replace('\n',' ')+'</div><div class="iop-m" style="color:'+s.c+'">'+s.m+'</div>';card.onclick=function(){toast(s.n.replace('\n',': ')+' - '+s.m,s.c);};el.appendChild(card);});}
+function drawTicker(){var el=eid('tickInner');var a=[{m:'O- sous seuil critique — CNTS Dakar (18 poches)',c:'#FF3333'},{m:'CHU Dakar Reanim: 1 lit dispo sur 12',c:'#FF3333'},{m:'CHOC_GRAVE VDN km12 — AMB-02 en route ETA 3min',c:'#FF8800'},{m:'WBGT Stade LSS 32.4C — Protocole chaleur ROUGE actif',c:'#FCD34D'},{m:'Surveillance intox Village Athletes — 3 cas stabilises',c:'#8844EE'},{m:'WhatsApp Bot: 12 signaux recus depuis 07h00',c:'#25D366'}];var html='';for(var r=0;r<2;r++){a.forEach(function(x){html+='<span class="tick-item" style="color:'+x.c+'">• '+x.m+'</span><span style="color:var(--muted);padding:0 10px">|</span>';});}el.innerHTML=html;}
+function drawUC(){var el=eid('ucGrid');el.innerHTML='';[{l:'SAMU',t:D.ambs.filter(function(a){return a.type==='samu';}).length,d:D.ambs.filter(function(a){return a.type==='samu'&&a.statut==='disponible';}).length,c:'#FF3333'},{l:'POMPIERS',t:D.ambs.filter(function(a){return a.type==='pompiers';}).length,d:D.ambs.filter(function(a){return a.type==='pompiers'&&a.statut==='disponible';}).length,c:'#FF8800'},{l:'SMUR',t:D.ambs.filter(function(a){return a.type==='smur';}).length,d:D.ambs.filter(function(a){return a.type==='smur'&&a.statut==='disponible';}).length,c:'#FCD34D'},{l:'CROIX-ROUGE',t:D.ambs.filter(function(a){return a.type==='croix_rouge';}).length,d:D.ambs.filter(function(a){return a.type==='croix_rouge'&&a.statut==='disponible';}).length,c:'#4ADE80'}].forEach(function(u){var cell=document.createElement('div');cell.className='uc-cell';cell.innerHTML='<div class="uc-n" style="color:'+u.c+'">'+u.d+'/'+u.t+'</div><div class="uc-l">'+u.l+'</div>';el.appendChild(cell);});}
+function drawTabSt(){eid('ss-samu').textContent=D.ambs.filter(function(a){return a.type==='samu'&&a.statut==='disponible';}).length+' dispo';eid('ss-pomp').textContent=D.ambs.filter(function(a){return a.type==='pompiers'&&a.statut==='disponible';}).length+' dispo';eid('ss-cous').textContent=D.incidents.filter(function(i){return i.st==='en_cours';}).length+' incidents';eid('ss-sante').textContent=D.sang.filter(function(s){return s.stock<s.seuil_alerte;}).length+' alertes sang';var cr=D.incidents.filter(function(i){return i.gravite==='critique';}).length;var ec=eid('cnt-samu');if(ec){ec.textContent=cr;ec.style.display=cr>0?'flex':'none';}var cc=D.incidents.filter(function(i){return i.st==='en_cours';}).length;var el=eid('cnt-cous');if(el){el.textContent=cc;el.style.display=cc>0?'flex':'none';}var sc=D.sang.filter(function(s){return s.stock<s.seuil_alerte;}).length;var es=eid('cnt-sante');if(es){es.textContent=sc;es.style.display=sc>0?'flex':'none';}}
+function drawSvcKpis(tab){var el=eid('svcKpis');el.innerHTML='';var kpis=SVC[tab]?SVC[tab].kpis():[];eid('kpiPt').textContent='METRIQUES '+(SVC[tab]?SVC[tab].lbl:tab.toUpperCase());kpis.forEach(function(k){var cell=document.createElement('div');cell.style.cssText='padding:9px 12px;background:var(--panel)';cell.innerHTML='<div style="font-family:var(--mono);font-size:18px;font-weight:500;color:'+k.c+'">'+k.n+'</div><div style="font-size:9px;color:var(--hint);margin-top:2px">'+k.l+'</div>';el.appendChild(cell);});}
+function switchTab(tab){curTab=tab;document.querySelectorAll('.svc-tab').forEach(function(t){t.classList.remove('on');t.style.borderBottomColor='transparent';});var at=eid('tab-'+tab);if(at){at.classList.add('on');at.style.borderBottomColor=SVC[tab]?SVC[tab].c:'#fff';}eid('mapPt').style.color=SVC[tab]?SVC[tab].c:'#fff';drawMap();drawSvcKpis(tab);if(charts.line){var cc={samu:'#FF3333',pomp:'#FF8800',gend:'#2266CC',cous:'#8844EE',sante:'#00AA66'};charts.line.data.datasets[0].borderColor=cc[tab]||'#FF3333';charts.line.update('none');}}
+function showIop(){var ok=D.iop.filter(function(s){return s.s==='ok';}).length;toast('Interoperabilite: '+ok+' connectes sur '+D.iop.length+' services','#4ADE80',4000);}
+function startRot(){rotTmr=setInterval(function(){rotIdx=(rotIdx+1)%TABS.length;switchTab(TABS[rotIdx]);},11000);}
+function stopRot(){clearInterval(rotTmr);rotTmr=null;}
+function toggleRot(){autoRot=!autoRot;var btn=eid('btnRot');if(autoRot){startRot();btn.classList.add('on');btn.innerHTML='<i class="ti ti-player-play"></i>';}else{stopRot();btn.classList.remove('on');btn.innerHTML='<i class="ti ti-player-pause"></i>';}}
+function goFS(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+function flashAlert(){document.body.style.outline='2px solid #FF3333';setTimeout(function(){document.body.style.outline='';},250);}
+function startDemo(){setInterval(function(){D.ambs=D.ambs.map(function(a){return Math.random()<.12?Object.assign({},a,{statut:a.statut==='disponible'?'en_mission':'disponible'}):a;});drawAmb();drawUC();drawTabSt();},15000);setInterval(function(){D.sang=D.sang.map(function(s){return Object.assign({},s,{stock:Math.max(0,s.stock+Math.floor(Math.random()*5-2))});});drawSang();updBeds();drawTabSt();},25000);setInterval(function(){eid('wbgtTb').textContent='&#9728; '+(36+Math.random()-.5).toFixed(1)+'C H'+Math.round(72+Math.random()*4)+'%';},18000);setInterval(function(){if(Math.random()<.35){var tp=['CHOC_GRAVE','RENVERSEMENT','MALAISE','INCENDIE'];var lx=['VDN km8','Corniche','Autoroute A1','Stade LSS'];var gx=['modere','urgent','critique','modere','leger'];var g=gx[Math.floor(Math.random()*gx.length)];var t=tp[Math.floor(Math.random()*tp.length)];var l=lx[Math.floor(Math.random()*lx.length)];D.incidents.unshift({id:'COUS-'+String(Date.now()).slice(-3),type:t,lieu:l,gravite:g,st:'en_cours',t:new Date().toTimeString().slice(0,5)});if(D.incidents.length>20)D.incidents.pop();if(g==='critique'){toast('CRITIQUE: '+t+' — '+l,'#FF3333',6000);flashAlert();}else toast('Incident: '+t+' '+l,'#FCD34D');drawMap();drawTabSt();drawSvcKpis(curTab);}},90000);}
+function refreshAll(){drawMap();drawAmb();drawSang();drawWbgt();drawIop();drawTicker();drawUC();drawTabSt();drawSvcKpis(curTab);updBeds();}
+document.addEventListener('keydown',function(e){var k=e.key;if(k==='1')switchTab('samu');else if(k==='2')switchTab('pomp');else if(k==='3')switchTab('gend');else if(k==='4')switchTab('cous');else if(k==='5')switchTab('sante');else if(k.toLowerCase()==='r')toggleRot();else if(k.toLowerCase()==='f')goFS();else if(k.toLowerCase()==='i')showIop();else if(k.toLowerCase()==='c')eid('cfg').style.display='flex';else if(k==='Escape')eid('cfg').style.display='none';});
+window.addEventListener('load',function(){setInterval(function(){var el=eid('clk');if(el)el.textContent=new Date().toTimeString().slice(0,8);},1000);buildCharts();refreshAll();startDemo();if(SURL!=='DEMO'&&SURL){initDB();}else setTimeout(function(){toast('Mode demo actif | Raccourcis: 1-5 services, R rotation, F plein ecran, C Supabase','#7A96B4',7000);},1200);if(autoRot)startRot();});
+</script>
+</body>
+</html>
