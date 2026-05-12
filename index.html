@@ -714,6 +714,12 @@ body{
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:6px">
       <div class="level-pill" id="alertPill"><div class="dot-live"></div>NIVEAU VERT</div>
       <div class="clock" id="clk">--:--:--</div>
+      <!-- Bouton Dashboard TV -->
+      <button onclick="openTVDashboard()" title="Ouvrir Dashboard TV (grand écran)" aria-label="Dashboard TV"
+        style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid rgba(232,165,16,.35);background:rgba(232,165,16,.07);color:var(--gold);cursor:pointer;font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.5px;transition:all .15s"
+        onmouseover="this.style.background='rgba(232,165,16,.15)'" onmouseout="this.style.background='rgba(232,165,16,.07)'">
+        <i class="ti ti-device-tv" style="font-size:14px" aria-hidden="true"></i>TV
+      </button>
       <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Changer thème" aria-label="Changer thème">
         <i class="ti ti-moon" id="themeIcon" aria-hidden="true"></i>
       </button>
@@ -2397,6 +2403,18 @@ function renderCousStats(pan){
 }
 function doLogout(){ doLogoutDB(); }
 /* ── THEME TOGGLE ── */
+/* ── DASHBOARD TV ── */
+function openTVDashboard(){
+  var tvUrl='nexkord_tv_dashboard.html';
+  var win=window.open(tvUrl,'NEXKORD_TV','width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no');
+  if(!win||win.closed){
+    if(confirm('Impossible d\'ouvrir une nouvelle fenêtre.\nOuvrir le Dashboard TV dans cet onglet ?'))
+      window.location.href=tvUrl;
+  } else {
+    toast('Dashboard TV ouvert ✓','#D4920A');
+  }
+}
+
 var currentTheme='dark';
 function toggleTheme(){
   currentTheme=currentTheme==='dark'?'light':'dark';
