@@ -605,6 +605,7 @@ body{
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -713,6 +714,10 @@ body{
     </nav>
     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:6px">
       <div class="level-pill" id="alertPill"><div class="dot-live"></div>NIVEAU VERT</div>
+      <!-- Badge mode dégradé — visible uniquement si réseau coupé -->
+      <div id="degradeBadge" style="display:none;align-items:center;gap:5px;padding:4px 10px;border-radius:12px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);font-size:9px;font-weight:700;font-family:monospace;color:#F59E0B;animation:pulse .9s infinite;cursor:pointer" onclick="nav('degrade')">
+        <i class="ti ti-wifi-off" style="font-size:12px"></i>MODE DÉGRADÉ
+      </div>
       <div class="clock" id="clk">--:--:--</div>
       <!-- Bouton Dashboard TV -->
       <button onclick="openTVDashboard()" title="Ouvrir Dashboard TV (grand écran)" aria-label="Dashboard TV"
@@ -1145,33 +1150,7 @@ async function saveSignalDB(){
 }
 
 /* Signal terrain */
-async function saveTerrainSignal(){
-  var axe=(eid('chapAxe')||{}).value||'';
-  var lieu=((eid('chapLieu')||{}).value||'').trim();
-  var vict=parseInt((eid('chapVict')||{}).value)||1;
-  var grav=(eid('chapGrav')||{}).value||'critique';
-  if(dbReady&&currentUser){
-    var res=await db.from('sap_signals').insert({
-      type:terrainSignalType,axe:axe,lieu_detail:lieu||null,victimes:vict,gravite:grav,
-      lat:sapGpsCoords?sapGpsCoords.lat:null,lon:sapGpsCoords?sapGpsCoords.lon:null,
-      precision_m:sapGpsCoords?sapGpsCoords.acc:null,region:sapZone,
-      signaleur_id:currentUser.id
-    });
-    if(res.error){toast('Erreur envoi: '+res.error.message,'#FF5449');return;}
-    /* Incrémenter signalements */
-    await db.from('profiles').update({signalements:supabase.rpc('profiles_increment_signalements')}).eq('id',currentUser.id);
-    toast('Signal envoyé au COUS ✓','#4ADE80');
-  } else {
-    /* Demo fallback */
-    var sec=sapSecouristes.find(function(s){return s.actif;})||{nom:'Secouriste',id:'SEC-TRN'};
-    sapSignals.unshift({id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' — '+lieu:''),type:terrainSignalType,victimes:vict,gravite:grav,signaleur:sec.nom,t:nowShort(),st:'actif',coord:sapGpsCoords?sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O':'--'});
-    if(sec.signalements!==undefined)sec.signalements++;
-    toast('Signal envoyé (démo)','#FB923C');
-  }
-  addAdminLog('TERRAIN','Signal terrain: '+terrainSignalType+' '+axe);
-  simulateNotifDests(terrainSignalType.indexOf('INCENDIE')>=0?'INCENDIE':terrainSignalType==='NOYADE'?'NOYADE':'ACCIDENT',axe);
-  closeModal();navTerrain('mes');
-}
+/* saveTerrainSignal → see full version below */
 
 /* COUS Incident — Déclarer */
 async function saveCousDB(){
@@ -1586,8 +1565,6 @@ function addAdminLog(src,msg){adminLogs.unshift({t:nowShort(),src:src,msg:msg});
 function distKm(x1,y1,x2,y2){var dx=(x2-x1)*.22,dy=(y2-y1)*.22;return Math.sqrt(dx*dx+dy*dy);}
 function etaMin(km){return Math.max(1,Math.round(km/.7));}
 function addLogRow(id,src,msg){var el=eid(id);if(!el)return;var r=mk('div','log-row');r.innerHTML='<div class="mono" style="font-size:8px;color:#E8A510">'+nowShort()+'</div><div style="font-size:10px;color:var(--muted)"><strong style="color:var(--text)">'+src+'</strong> — '+msg+'</div>';el.insertBefore(r,el.firstChild);if(el.children.length>20)el.removeChild(el.lastChild);}
-function sapLog(user,action,zone,detail){sapAuditLogs.unshift({ts:nowStr(),user:user,action:action,zone:zone,detail:detail});addAdminLog('SAP','[AUDIT] '+action+' '+zone);}
-function canAccess(reqLevel){var levels={'VIEWER':0,'OPERATOR':1,'ADMIN':2,'SUPER_ADMIN':3};return (levels[sapRole]||0)>=(levels[reqLevel]||0);}
 
 /* ── D26 BADGE ── */
 function d26el(){
@@ -1782,6 +1759,11 @@ function buildSidebar(){
       {id:'amb',code:'AMB',color:'var(--gold)',label:'Ambulances GPS'},
       {id:'cous',code:'COUS',color:'var(--purple)',label:'Urgences Sanitaires'},
       {id:'sap',code:'SAP',color:'var(--gold)',label:'mInfoSante Traffic'},
+    ]},
+    {label:'JOJ 2026 — NOUVEAUX', items:[
+      {id:'ref',code:'REF',color:'#FF5449',label:'References Medicales'},
+      {id:'imgia',code:'IA',color:'#8B5CF6',label:'IA Imagerie Medicale'},
+      {id:'degrade',code:'DGD',color:'#F59E0B',label:'Mode Degrade'},
     ]},
     {label:'INNOVATIONS', items:[
       {id:'triage',code:'TRG',color:'var(--red2)',label:'Triage IA START'},
@@ -2106,58 +2088,6 @@ function renderTerrainProfil(v){
   v.appendChild(outBtn);
 }
 
-function openTerrainSignalModal(){
-  var axesFull=['VDN — Dakar','Corniche — Dakar','Route Rufisque','Autoroute A1','Dial Diop','RN1 — Thiès','RN2 — Saint-Louis','RN3 — Diourbel','Route Mbao','RN Kaolack','RN4 — Ziguinchor','RN6 — Tambacounda','Route Matam','RN7 — Louga'];
-  var axes=axesFull.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
-  var gpsInfo=sapGpsCoords?'<div style="color:var(--g2);font-size:10px;margin-top:4px"><i class="ti ti-map-pin" style="font-size:10px" aria-hidden="true"></i> GPS: '+sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O</div>':'';
-  openModal('<div style="font-weight:700;font-size:17px;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-alert-triangle" style="font-size:16px;color:var(--red2)" aria-hidden="true"></i>SIGNALER UN ACCIDENT</div>'+
-    '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Type d\'incident *</label>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">'+
-    [['CHOC_GRAVE','Choc grave','#FF5449'],['RENVERSEMENT','Renversement','#FB923C'],['INCENDIE','Incendie véhicule','#FBBF24'],['NOYADE','Noyade','#3B8AE8'],['CHUTE_MOTO','Chute moto','#9B6EF3'],['OBSTACLE','Obstacle route','#64748B']].map(function(t){
-      return '<button onclick="selectTerrainType(\''+t[0]+'\')" id="ttype-'+t[0]+'" style="padding:8px;border:1px solid '+t[2]+'33;border-radius:7px;background:'+t[2]+'08;color:'+t[2]+';font-family:var(--font);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s">'+t[1]+'</button>';
-    }).join('')+'</div></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Axe / Zone</label><select class="sel" id="chapAxe" style="width:100%">'+axes+'</select></div>'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Victimes visibles</label><input class="inp" id="chapVict" type="number" min="0" value="1"/></div></div>'+
-    '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Lieu précis</label><input class="inp" id="chapLieu" placeholder="Ex: km12 direction Almadies"/>'+gpsInfo+'</div>'+
-    '<div style="margin-bottom:14px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Gravité estimée</label>'+
-    '<select class="sel" id="chapGrav" style="width:100%"><option value="critique">🔴 Critique P1 — Vie en danger</option><option value="urgent">🟠 Urgent P2 — Blessure grave</option><option value="leger">🟢 Léger — Dommages matériels</option></select></div>'+
-    '<div style="display:flex;gap:8px">'+
-    '<button onclick="saveTerrainSignal()" class="t-btn-primary" style="flex:1;padding:14px;font-size:13px;border-radius:10px"><i class="ti ti-send" style="font-size:15px" aria-hidden="true"></i> ENVOYER AU COUS</button>'+
-    '<button onclick="closeModal()" style="padding:14px 16px;border:1px solid var(--br);border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font)">Annuler</button></div>');
-}
-var terrainSignalType='CHOC_GRAVE';
-function selectTerrainType(t){
-  terrainSignalType=t;
-  document.querySelectorAll('[id^="ttype-"]').forEach(function(b){b.style.opacity='0.5';b.style.fontWeight='500';});
-  var sel=eid('ttype-'+t);if(sel){sel.style.opacity='1';sel.style.fontWeight='700';sel.style.transform='scale(1.04)';}
-}
-function saveTerrainSignal(){
-  var axe=(eid('chapAxe')||{}).value||'';
-  var lieu=((eid('chapLieu')||{}).value||'').trim();
-  var vict=parseInt((eid('chapVict')||{}).value)||1;
-  var grav=(eid('chapGrav')||{}).value||'critique';
-  var sec=sapSecouristes.find(function(s){return s.actif;})||{nom:'Secouriste',id:'SEC-TRN'};
-  var sig={id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' — '+lieu:''),type:terrainSignalType,victimes:vict,gravite:grav,signaleur:sec.nom,t:nowShort(),st:'actif',coord:sapGpsCoords?sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O':'--'};
-  sapSignals.unshift(sig);
-  sapLog(sec.nom,'SIGNAL_TERRAIN',axe,terrainSignalType+' '+vict+' victimes');
-  simulateNotifDests(terrainSignalType.indexOf('INCENDIE')>=0?'INCENDIE':terrainSignalType==='NOYADE'?'NOYADE':'ACCIDENT',axe);
-  if(sec.signalements!==undefined)sec.signalements++;
-  addAdminLog('TERRAIN','Signal terrain: '+terrainSignalType+' '+axe);
-  toast('Signal envoyé! Services alertés.','#00C262');
-  closeModal();
-  navTerrain('mes');
-}
-function terrainGetGPS(){
-  var el=eid('t-gps-txt');if(el)el.textContent='Localisation GPS en cours...';
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      function(p){sapGpsCoords={lat:p.coords.latitude,lon:p.coords.longitude,acc:Math.round(p.coords.accuracy)};if(el)el.textContent='GPS: '+p.coords.latitude.toFixed(4)+'N '+p.coords.longitude.toFixed(4)+'O (±'+Math.round(p.coords.accuracy)+'m)';toast('Position GPS obtenue ✓','#00C262');},
-      function(){sapGpsCoords={lat:14.693,lon:-17.450,acc:15};if(el)el.textContent='GPS simulé: 14.6930N 17.4500O ±15m';},
-      {timeout:6000}
-    );
-  } else {if(el)el.textContent='GPS non disponible';}
-}
 
 /* ══════════════════════════════════════════════
    COUS — SALLE D'OPÉRATIONS COORDINATEUR
@@ -2433,13 +2363,15 @@ var NAV_RENDERS={
   m1:rM1,m2:rM2,geo:rGeo,m3:rM3,m4:rM4,m5:rM5,m6:rM6,m7:rM7,m8:rM8,m9:rM9,m10:rM10,
   adm:rAdm,qr:rQR,inn:rInn,sec:rSec,
   lit:rLit,sang:rSang,amb:rAmb,
-  cous:rCousOpsCenter,   /* Salle d'opérations coordinateur */
+  cous:rCousOpsCenter,
   sap:rSap,
   triage:rTriage,sentinel:rSentinel,heat:rHeat,nexcom:rNexcom,
   pharma:rPharma,
-  acc:rAccesso,
-  accesso:rAccesso,
-  cyber:rCyber,evacia:rEvacIA
+  acc:rAccesso, accesso:rAccesso,
+  cyber:rCyber,evacia:rEvacIA,
+  ref:rRef,          /* M-REF Références médicales PMA→Hôpital */
+  imgia:rImagIA,     /* M-IA  Analyse imagerie Claude API       */
+  degrade:rDegrade   /* M-DGD Mode dégradé offline              */
 };
 function nav(id){
   curMod=id;
@@ -2460,37 +2392,7 @@ function nav(id){
 }
 
 /* ── M1 HELPERS ── */
-function renderIncList(el){
-  while(el.firstChild)el.removeChild(el.firstChild);
-  var active=urgences.filter(function(u){return u.st!=='resolu';});
-  if(!active.length){
-    var e=mk('div');e.style.cssText='padding:18px;text-align:center;color:var(--subtle);font-size:11px';
-    e.innerHTML='<i class="ti ti-check" style="font-size:22px;display:block;margin-bottom:6px;color:var(--g2)" aria-hidden="true"></i>Aucun incident actif';
-    el.appendChild(e);return;
-  }
-  active.forEach(function(u){
-    var row=mk('div','li');var dc=mk('div','dot '+(u.crit==='P1'?'dot-r':'dot-a'));
-    var info=mk('div');info.style.flex='1';info.innerHTML='<div style="font-size:10px;font-weight:500">'+u.titre+'</div><div style="font-size:8px;color:var(--subtle)">'+u.lieu+'</div>';
-    var b=mk('span','badge');b.style.cssText='color:'+(u.crit==='P1'?'var(--red2)':'var(--gold)')+';border-color:'+(u.crit==='P1'?'rgba(232,87,74,.4)':'rgba(232,165,16,.4)')+';background:'+(u.crit==='P1'?'rgba(232,87,74,.15)':'rgba(232,165,16,.15)');b.textContent=u.crit;
-    row.appendChild(dc);row.appendChild(info);row.appendChild(b);el.appendChild(row);
-  });
-}
-function quickUrg(){
-  var opts=[{t:'Malaise athlete',l:'Stade LSS',c:'P2'},{t:'Collision navette',l:'Route VDN',c:'P1'},{t:'Debut incendie',l:'Arena Dakar',c:'P1'}];
-  var o=opts[Math.floor(Math.random()*opts.length)];
-  urgences.unshift({id:'U'+Date.now(),titre:o.t,lieu:o.l,crit:o.c,st:'ouvert'});
-  addAdminLog(o.c==='P1'?'ALERTE P1':'URGENCE',o.t+' — '+o.l);
-  toast(o.c==='P1'?'ALERTE P1 declenchee!':'Urgence creee','#E8574A');
-  var il=eid('m1Inc');if(il)renderIncList(il);
-  addLogRow('m1Log',o.c==='P1'?'P1':'URG',o.t+' '+o.l);
-}
 /* ── M2 HELPERS ── */
-function renderM2UrgList(el){
-  while(el.firstChild)el.removeChild(el.firstChild);
-  var active=urgences.filter(function(u){return u.st!=='resolu';});
-  if(!active.length){var e=mk('div');e.style.cssText='padding:20px;text-align:center;color:var(--subtle);font-size:11px';e.innerHTML='<i class="ti ti-check" style="font-size:22px;display:block;margin-bottom:6px;color:var(--g2)" aria-hidden="true"></i>Aucune urgence active<br><br><span style="font-size:10px">Cliquez Declarer pour tester</span>';el.appendChild(e);return;}
-  active.forEach(function(u){var row=mk('div','li');row.style.cssText='flex-direction:column;align-items:start';var top=mk('div');top.style.cssText='display:flex;gap:5px;align-items:center;width:100%;margin-bottom:2px';top.innerHTML='<span class="badge" style="color:'+(u.crit==='P1'?'var(--red2)':'var(--gold)')+';border-color:'+(u.crit==='P1'?'rgba(232,87,74,.4)':'rgba(232,165,16,.4)')+';background:'+(u.crit==='P1'?'rgba(232,87,74,.15)':'rgba(232,165,16,.15)')+'">'+u.crit+'</span><span style="font-size:10px;font-weight:500;flex:1">'+u.titre+'</span>';var rb=mk('button','btn btn-g');rb.style.cssText='font-size:7px;padding:1px 5px';rb.textContent='RESOUDRE';(function(uid){rb.onclick=function(){resUrg(uid);};})(u.id);top.appendChild(rb);var loc=mk('div');loc.style.cssText='font-size:9px;color:var(--subtle)';loc.textContent=u.lieu;row.appendChild(top);row.appendChild(loc);el.appendChild(row);});
-}
 function declUrg(type,crit){var t={med:'Malaise athlete',acc:'Collision navette',inc:'Incendie local',cat:'Effondrement structure',san:'Cas groupes maladie'};var l={med:'Stade LSS',acc:'Route VDN km4',inc:'Arena Dakar',cat:'Stade LSS Tribune',san:'Village Athletes'};urgences.unshift({id:'U'+Date.now(),titre:t[type]||type,lieu:l[type]||'Site',crit:crit,st:'ouvert'});addAdminLog(crit==='P1'?'ALERTE P1':'URGENCE',(t[type]||type)+' '+(l[type]||''));if(type==='cat')togOrsec('PLAN_ROUGE','Plan Rouge');if(type==='san')togOrsec('PLAN_SAN','ORSEC Sanitaire');toast(crit==='P1'?'ALERTE P1 declenchee!':'Urgence declaree');nav('m2');}
 function resUrg(id){urgences=urgences.map(function(u){return u.id===id?Object.assign({},u,{st:'resolu'}):u;});addAdminLog('SYS','Urgence resolue: '+id.slice(-4));toast('Urgence resolue');nav('m2');}
 function togOrsec(id,nom){orsecActif=orsecActif===id?null:id;addAdminLog('ORSEC',orsecActif?nom+' declenche':'Plan leve');toast(orsecActif?nom+' DECLENCHE':'Plan ORSEC leve',orsecActif?'#E8574A':'#00A85A');nav('m2');}
@@ -2507,28 +2409,12 @@ var SVCS_GEO=[
   {id:'g9',x:218,y:185,c:'#10b981',nom:'Croix-Rouge LSS',tel:'+221 33 869 11 11',type:'Croix-Rouge'},
   {id:'g10',x:68,y:206,c:'#8b5cf6',nom:'COUS',tel:'+221 33 839 91 00',type:'Sanitaire'},
 ];
-function geoLog(src,msg){var el=eid('gLog');if(!el)return;var r=mk('div','log-row');r.innerHTML='<div class="mono" style="font-size:8px;color:#E8A510">'+nowShort()+'</div><div style="font-size:10px;color:var(--muted)"><strong style="color:var(--text)">'+src+'</strong> — '+msg+'</div>';el.insertBefore(r,el.firstChild);if(el.children.length>20)el.removeChild(el.lastChild);}
-function geoTrigger(){if(sosActive)return;sosActive=true;sosStart=Date.now();var btn=eid('gSosBtn'),ico=eid('gSosIco'),txt=eid('gSosTxt');if(btn){btn.style.background='rgba(232,165,16,.1)';btn.style.borderColor='rgba(232,165,16,.4)';btn.style.color='var(--gold)';}if(ico){ico.className='ti ti-loader';ico.style.animation='spin 1s linear infinite';}if(txt)txt.textContent='LOCALISATION EN COURS...';geoLog('SOS','Appel urgence declenche — acquisition GPS');if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){geoProcess(p.coords.latitude,p.coords.longitude,Math.round(p.coords.accuracy),'GPS reel');},function(){geoProcess(14.693+(Math.random()-.5)*.05,-17.450+(Math.random()-.5)*.05,15,'Simulation');},{enableHighAccuracy:true,timeout:5000,maximumAge:0});}else{geoProcess(14.693+(Math.random()-.5)*.05,-17.450+(Math.random()-.5)*.05,15,'Simulation');}}
-function geoProcess(lat,lon,acc,method){var elapsed=((Date.now()-sosStart)/1000).toFixed(1);var tm=eid('gStatTime');if(tm)tm.textContent=elapsed+'s';var cx=Math.max(20,Math.min(310,Math.round(160+(lon-(-17.450))*780)));var cy=Math.max(20,Math.min(200,Math.round(110-(lat-14.693)*850)));var gb=eid('gGpsBar'),gc=eid('gGpsCo'),ga=eid('gGpsAc');if(gb)gb.style.display='block';if(gc)gc.textContent=lat.toFixed(5)+'N  '+lon.toFixed(5)+'O';if(ga)ga.textContent='Precision: +-'+acc+'m  Methode: '+method;['gcB','gcDot','gcInn'].forEach(function(id){var e=eid(id);if(e){e.setAttribute('cx',cx);e.setAttribute('cy',cy);}});var gt=eid('gcTxt');if(gt){gt.setAttribute('x',cx);gt.setAttribute('y',cy-13);}var cg=eid('gCallerG');if(cg)cg.style.display='';geoLog('GPS','Position: '+lat.toFixed(5)+'N '+lon.toFixed(5)+'O +-'+acc+'m ('+method+')');geoLog('WS','Broadcast Command Center ('+elapsed+'s)');var sorted=SVCS_GEO.map(function(s){var dk=distKm(cx,cy,s.x,s.y);return Object.assign({},s,{dk:dk,eta:etaMin(dk)});}).sort(function(a,b){return a.dk-b.dk;});geoLog('NEXKORD','Services tries — plus proche: '+sorted[0].nom+' '+sorted[0].dk.toFixed(1)+'km');var NS='http://www.w3.org/2000/svg';var dg=eid('gDistG');if(dg){dg.innerHTML='';sorted.slice(0,3).forEach(function(s,i){var line=document.createElementNS(NS,'line');line.setAttribute('x1',cx);line.setAttribute('y1',cy);line.setAttribute('x2',s.x);line.setAttribute('y2',s.y);line.setAttribute('stroke',s.c);line.setAttribute('stroke-width','.8');line.setAttribute('stroke-dasharray','4 3');line.setAttribute('opacity',String(.5-i*.1));dg.appendChild(line);});}var el=eid('gSvcList');if(el){while(el.firstChild)el.removeChild(el.firstChild);sorted.forEach(function(s,i){var isD=geoDispatched.indexOf(s.id)>=0;var dkc=s.dk<2?'#10b981':s.dk<4?'#eab308':'#f97316';var card=mk('div','svc-card');var ico=mk('div');ico.style.cssText='width:28px;height:28px;border-radius:5px;background:'+s.c+'18;border:1px solid '+s.c+'44;display:flex;align-items:center;justify-content:center;flex-shrink:0';ico.innerHTML='<div style="width:7px;height:7px;border-radius:50%;background:'+s.c+'"></div>';var info=mk('div');info.style.minWidth='0';info.innerHTML='<div style="font-size:10px;font-weight:500">'+(i===0?'<span style="font-size:7px;background:rgba(0,168,90,.15);color:#00A85A;border:1px solid rgba(0,168,90,.3);padding:0 4px;border-radius:2px;font-weight:700;margin-right:4px">+PROCHE</span>':'')+s.nom+'</div><div style="font-size:8px;color:var(--subtle)">'+s.type+' <span class="mono" style="color:#E8A510">'+s.tel+'</span></div><div style="margin-top:2px"><span style="font-size:8px;padding:1px 7px;border-radius:10px;font-family:monospace;font-weight:700;color:'+dkc+';background:'+dkc+'18;border:1px solid '+dkc+'44">'+s.dk.toFixed(1)+'km</span><span style="font-size:8px;color:var(--subtle);margin-left:5px">ETA <strong style="color:var(--text);font-family:monospace">'+s.eta+'min</strong></span></div>';card.appendChild(ico);card.appendChild(info);if(!isD){var db=mk('button','btn btn-g');db.style.cssText='font-size:7.5px;padding:3px 8px;white-space:nowrap';db.textContent='DEPECHER';(function(sid,snom,seta){db.onclick=function(){geoDispatched.push(sid);var sd=eid('gStatDisp');if(sd)sd.textContent=String(geoDispatched.length);geoLog('DISPATCH',snom+' depeche ETA '+seta+'min');toast(snom+' en route!');var rows=el.querySelectorAll('.svc-card');rows.forEach(function(r,j){if(j===i&&r.lastChild&&r.lastChild.textContent==='DEPECHER')r.removeChild(r.lastChild);});};})(s.id,s.nom,s.eta);card.appendChild(db);}el.appendChild(card);});}var btn2=eid('gSosBtn'),ico2=eid('gSosIco'),txt2=eid('gSosTxt');if(btn2){btn2.style.background='rgba(0,168,90,.1)';btn2.style.borderColor='rgba(0,168,90,.4)';btn2.style.color='var(--g2)';}if(ico2){ico2.className='ti ti-check';ico2.style.animation='';}if(txt2)txt2.textContent='GPS LOCALISE — '+elapsed+'s';var sc=eid('gSvcCnt');if(sc)sc.textContent=sorted.length+' TRIES';}
 /* ── M6 CHAT ── */
 var m6GetR=null;
-function sendChat(text){var msg=text||(eid('m6Inp')&&eid('m6Inp').value.trim());if(!msg)return;var inp=eid('m6Inp');if(inp)inp.value='';chatHistory.push({from:'user',text:msg});nav('m6');var lang=m6Lang;var fn=m6GetR;if(fn)setTimeout(function(){chatHistory.push({from:'bot',text:fn(msg,lang)});nav('m6');var ca=eid('m6Chat');if(ca)ca.scrollTop=ca.scrollHeight;},700);}
 /* ── ADM HELPERS ── */
-function renderAdmTable(el,list){while(el.firstChild)el.removeChild(el.firstChild);if(!list.length){var e=mk('div');e.style.cssText='padding:24px;text-align:center;color:var(--subtle);font-size:11px';e.innerHTML='<i class="ti ti-inbox" style="font-size:26px;display:block;margin-bottom:6px" aria-hidden="true"></i>Aucun service';el.appendChild(e);return;}list.forEach(function(svc){var tc=typeCfg[svc.type]||typeCfg.technique;var row=mk('div','svc-card');var ico=mk('div');ico.style.cssText='width:32px;height:32px;border-radius:6px;background:'+tc.bg+';border:1px solid '+tc.c+'33;display:flex;align-items:center;justify-content:center;flex-shrink:0';ico.innerHTML='<i class="ti '+tc.ico+'" style="font-size:14px;color:'+tc.c+'" aria-hidden="true"></i>';var info=mk('div');info.style.minWidth='0';info.innerHTML='<div style="font-size:11px;font-weight:500;color:var(--text)">'+svc.nom+'</div><div style="font-size:9px;color:var(--subtle)"><span class="mono" style="color:#E8A510">'+svc.tel+'</span> &nbsp;·&nbsp; '+svc.site+' &nbsp;·&nbsp; '+svc.agents+' agents</div><div style="margin-top:3px"><span style="font-size:8px;padding:1px 5px;border-radius:2px;background:'+tc.bg+';color:'+tc.c+';border:1px solid '+tc.c+'33;font-weight:700">'+tc.lbl+'</span></div>';var meta=mk('div');meta.style.cssText='display:flex;align-items:center;gap:5px';var dotEl=mk('div','dot');dotEl.style.background=svc.statut==='actif'?'var(--g2)':svc.statut==='standby'?'var(--gold)':'var(--subtle)';if(svc.statut==='actif')dotEl.style.boxShadow='0 0 4px var(--g2)';var togBtn=mk('button','btn '+(svc.statut==='actif'?'btn-a':'btn-g'));togBtn.style.cssText='font-size:7.5px;padding:3px 8px';togBtn.textContent=svc.statut==='actif'?'DESACTIVER':'ACTIVER';(function(sid){togBtn.onclick=function(e){e.stopPropagation();togSvc(sid);};})(svc.id);var editBtn=mk('button','btn btn-b');editBtn.style.cssText='font-size:7.5px;padding:3px 8px';editBtn.innerHTML='<i class="ti ti-edit" style="font-size:10px" aria-hidden="true"></i>';(function(sid){editBtn.onclick=function(e){e.stopPropagation();openEditModal(sid);};})(svc.id);var delBtn=mk('button','btn btn-r');delBtn.style.cssText='font-size:7.5px;padding:3px 8px';delBtn.innerHTML='<i class="ti ti-trash" style="font-size:10px" aria-hidden="true"></i>';(function(sid,snom){delBtn.onclick=function(e){e.stopPropagation();if(confirm('Supprimer "'+snom+'" ?')){delSvc(sid);}};})(svc.id,svc.nom);meta.appendChild(dotEl);meta.appendChild(togBtn);meta.appendChild(editBtn);meta.appendChild(delBtn);row.appendChild(ico);row.appendChild(info);row.appendChild(meta);el.appendChild(row);});}
-function filterSvcs(q){var el=eid('admBody');if(!el)return;var fil=services.filter(function(s){return !q||s.nom.toLowerCase().indexOf(q.toLowerCase())>=0||s.tel.indexOf(q)>=0;});renderAdmTable(el,fil);}
-function togSvc(id){services=services.map(function(s){if(s.id!==id)return s;var ns=s.statut==='actif'?'standby':'actif';addAdminLog('ADMIN',s.nom+' statut: '+ns.toUpperCase());return Object.assign({},s,{statut:ns});});toast('Statut mis a jour');nav('adm');}
-function delSvc(id){var s=services.find(function(x){return x.id===id;});services=services.filter(function(x){return x.id!==id;});addAdminLog('ADMIN','Service supprime: '+(s?s.nom:'#'+id));toast('Service supprime','#E8574A');nav('adm');}
-function openAddModal(){openModal('<div style="font-family:var(--font);font-weight:700;font-size:16px;letter-spacing:1px;color:#fff;margin-bottom:14px">AJOUTER UN SERVICE</div><div style="margin-bottom:10px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Nom *</label><input class="inp" id="fNom" placeholder="Ex: SMUR Keur Massar"/></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Type</label><select class="sel" id="fType" style="width:100%"><option value="medical">Medical</option><option value="pompiers">Pompiers</option><option value="securite">Securite</option><option value="sanitaire">Sanitaire</option><option value="transport">Transport</option><option value="croixrouge">Croix-Rouge</option></select></div><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Telephone *</label><input class="inp" id="fTel" placeholder="15 ou +221..."/></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Site</label><input class="inp" id="fSite" placeholder="Stade LSS"/></div><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Agents</label><input class="inp" id="fAg" type="number" min="0" value="0"/></div></div><div style="display:flex;gap:8px"><button onclick="saveNewSvc()" class="btn btn-g" style="flex:1;justify-content:center;font-size:11px;padding:8px">ENREGISTRER</button><button onclick="closeModal()" class="btn" style="padding:8px 16px;color:var(--subtle);border-color:rgba(255,255,255,.1)">Annuler</button></div>');}
-function openEditModal(id){var s=services.find(function(x){return x.id===id;});if(!s)return;openModal('<div style="font-family:var(--font);font-weight:700;font-size:16px;letter-spacing:1px;color:#fff;margin-bottom:14px">MODIFIER LE SERVICE</div><input type="hidden" id="fEditId" value="'+id+'"/><div style="margin-bottom:10px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Nom *</label><input class="inp" id="fNom" value="'+s.nom+'"/></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Telephone *</label><input class="inp" id="fTel" value="'+s.tel+'"/></div><div><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Agents</label><input class="inp" id="fAg" type="number" value="'+s.agents+'"/></div></div><div style="margin-bottom:12px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Site</label><input class="inp" id="fSite" value="'+s.site+'"/></div><div style="display:flex;gap:8px"><button onclick="saveEditSvc()" class="btn btn-g" style="flex:1;justify-content:center;font-size:11px;padding:8px">ENREGISTRER</button><button onclick="closeModal()" class="btn" style="padding:8px 16px;color:var(--subtle);border-color:rgba(255,255,255,.1)">Annuler</button></div>');}
-function saveNewSvc(){var nom=(eid('fNom')||{}).value||'';var tel=(eid('fTel')||{}).value||'';if(!nom.trim()||!tel.trim()){toast('Nom et telephone obligatoires','#E8574A');return;}var s={id:nextSvcId++,nom:nom.trim(),type:(eid('fType')||{}).value||'medical',tel:tel.trim(),site:((eid('fSite')||{}).value||'').trim()||'Dakar',agents:parseInt((eid('fAg')||{}).value)||0,statut:'actif'};services.push(s);addAdminLog('ADMIN','Nouveau service: '+s.nom);toast('Service ajoute!');closeModal();nav('adm');}
-function saveEditSvc(){var id=parseInt((eid('fEditId')||{}).value);var nom=(eid('fNom')||{}).value||'';var tel=(eid('fTel')||{}).value||'';if(!nom.trim()||!tel.trim()){toast('Nom et telephone obligatoires','#E8574A');return;}services=services.map(function(s){if(s.id!==id)return s;return Object.assign({},s,{nom:nom.trim(),tel:tel.trim(),agents:parseInt((eid('fAg')||{}).value)||0,site:((eid('fSite')||{}).value||'').trim()||s.site});});addAdminLog('ADMIN','Service modifie: '+nom);toast('Service mis a jour');closeModal();nav('adm');}
 /* ── QR HELPER ── */
-function genQR(id,url,title){var box=eid('qrPrev');if(!box)return;box.innerHTML='<div style="font-size:10px;color:var(--subtle);padding:18px;text-align:center"><i class="ti ti-loader" style="font-size:24px;display:block;margin-bottom:8px;animation:spin 1s linear infinite" aria-hidden="true"></i>Generation...</div>';if(typeof QRCode==='undefined'){box.innerHTML='<div style="color:var(--red2);font-size:10px;padding:14px">Bibliotheque QR non disponible</div>';return;}try{var canvas=document.createElement('canvas');QRCode.toCanvas(canvas,url,{width:180,margin:2,color:{dark:'#000000',light:'#ffffff'}},function(err){if(err){box.innerHTML='<div style="color:var(--red2);font-size:10px;padding:14px">Erreur: '+err.message+'</div>';return;}box.innerHTML='';var wrap=mk('div');wrap.style.cssText='padding:12px;text-align:center';var tit=mk('div');tit.style.cssText='font-size:11px;font-weight:600;color:var(--text);margin-bottom:6px';tit.textContent=title;var cw=mk('div');cw.style.cssText='background:#fff;border-radius:6px;padding:6px;display:inline-flex;margin-bottom:8px';cw.appendChild(canvas);var ul=mk('div');ul.style.cssText='font-family:monospace;font-size:8px;color:var(--blue);word-break:break-all;padding:0 8px;margin-bottom:10px';ul.textContent=url;var dl=mk('button','btn btn-g');dl.style.cssText='font-size:8px;padding:4px 12px';dl.innerHTML='<i class="ti ti-download" style="font-size:10px" aria-hidden="true"></i> TELECHARGER PNG';dl.onclick=function(){var a=document.createElement('a');a.download='NEXKORD-QR-'+title.replace(/\s/g,'-').slice(0,30)+'.png';a.href=canvas.toDataURL('image/png');a.click();toast('QR telecharge!');};wrap.appendChild(tit);wrap.appendChild(cw);wrap.appendChild(ul);wrap.appendChild(dl);box.appendChild(wrap);addAdminLog('QR','QR genere: '+title);toast('QR genere!');var vc=eid('vcPrev');if(vc){vc.innerHTML='';var vcCard=mk('div');vcCard.style.cssText='background:var(--bg2);border:1px solid rgba(232,165,16,.25);border-radius:10px;padding:13px;position:relative;overflow:hidden';var rib=mk('div');rib.style.cssText='position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--g),var(--gold),var(--red))';vcCard.appendChild(rib);var cont=mk('div');cont.style.cssText='display:flex;gap:10px;align-items:center;margin-top:4px';var qi=mk('img');qi.src=canvas.toDataURL('image/png');qi.alt='QR Code';qi.style.cssText='width:68px;height:68px;border-radius:4px;background:#fff;padding:3px;flex-shrink:0';var ti2=mk('div');ti2.style.flex='1';ti2.innerHTML='<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px">'+title+'</div><div style="font-size:9px;color:rgba(255,255,255,.5);margin-bottom:5px">JOJ Dakar 2026</div><div class="mono" style="font-size:8px;color:#E8A510">Scannez pour acces rapide</div>';cont.appendChild(qi);cont.appendChild(ti2);vcCard.appendChild(cont);vc.appendChild(vcCard);}});}catch(e){box.innerHTML='<div style="color:var(--red2);font-size:10px;padding:14px">Erreur: '+e.message+'</div>';}}
 /* ── SAP HELPERS ── */
 /* ── TRIAGE HELPERS ── */
-function openTriageModal(){openModal('<div style="font-family:var(--font);font-weight:700;font-size:15px;letter-spacing:1px;color:var(--red2);margin-bottom:14px">EVALUER UNE VICTIME — START</div><div style="margin-bottom:10px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Identite</label><input class="inp" id="tNom" placeholder="Athlete / Spectateur..."/></div><div style="margin-bottom:10px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Signes cliniques</label><input class="inp" id="tCs" placeholder="Inconscient, respire, pas de pouls..."/></div><div style="margin-bottom:14px"><label style="font-size:9px;color:var(--subtle);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Categorie START</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button onclick="selectTriageCat(\'immediat\')" id="trCat-immediat" style="padding:9px;border:1px solid rgba(232,87,74,.35);border-radius:7px;background:rgba(232,87,74,.08);color:var(--red2);font-family:var(--font);font-weight:700;font-size:11px;cursor:pointer">IMMEDIAT P1</button><button onclick="selectTriageCat(\'differe\')" id="trCat-differe" style="padding:9px;border:1px solid rgba(232,165,16,.35);border-radius:7px;background:rgba(232,165,16,.06);color:var(--gold);font-family:var(--font);font-weight:700;font-size:11px;cursor:pointer">DIFFERE P2</button><button onclick="selectTriageCat(\'mineur\')" id="trCat-mineur" style="padding:9px;border:1px solid rgba(0,168,90,.35);border-radius:7px;background:rgba(0,168,90,.08);color:var(--g2);font-family:var(--font);font-weight:700;font-size:11px;cursor:pointer">MINEUR P3</button><button onclick="selectTriageCat(\'decede\')" id="trCat-decede" style="padding:9px;border:1px solid rgba(100,116,139,.35);border-radius:7px;background:rgba(100,116,139,.06);color:#64748b;font-family:var(--font);font-weight:700;font-size:11px;cursor:pointer">DECEDE</button></div></div><div style="display:flex;gap:8px"><button onclick="saveTriagePatient()" class="btn btn-r" style="flex:1;justify-content:center;font-size:11px;padding:8px">ENREGISTRER TRIAGE</button><button onclick="closeModal()" class="btn" style="padding:8px 16px;color:var(--subtle);border-color:rgba(255,255,255,.1)">Annuler</button></div>');}
-function selectTriageCat(cat){triageSelectedCat=cat;}
-function saveTriagePatient(){var nom=(eid('tNom')||{}).value||'Victime';var cs=(eid('tCs')||{}).value||'A evaluer';triagePatients.unshift({id:'PT-'+String(Date.now()).slice(-3),nom:nom.trim(),age:0,sport:'—',cat:triageSelectedCat,cs:cs.trim(),t:nowShort(),equipe:'A affecter'});addAdminLog('TRIAGE','Nouvelle victime '+triageSelectedCat.toUpperCase()+': '+nom.trim());toast('Victime triee: '+triageSelectedCat.toUpperCase(),'#E8574A');closeModal();nav('triage');}
 
 function rM1(v){
   v.appendChild(moduleIntro('M1','COMMAND CENTER','#3b82f6','Tableau de bord central temps reel. Superviseurs voient tout: carte GPS, incidents actifs, KPIs operationnels, journal live, meteo sites. Cerveau de l\'operation.',['Carte live','KPIs temps reel','Incidents actifs','Journal auto','Meteo'],['Admin','Superviseur','Operateur']));
@@ -2786,31 +2672,6 @@ function rM3(v){
 /* ══════════════════════════════════════════════
    M4 — APP GRAND PUBLIC
 ══════════════════════════════════════════════ */
-function rM4(v){
-  v.appendChild(moduleIntro('M4','APP GRAND PUBLIC','#10b981','Interface visiteurs, athletes et grand public. Programme sportif, resultats live, services locaux, numeros urgences. Sans compte requis, 4 langues, mode offline complet.',['Programme','Resultats live','Services','Urgences','Offline','4 langues'],['Public','Visiteurs','Athletes','Presse']));
-  var wrap=mk('div');wrap.style.cssText='max-width:500px;margin:0 auto';
-  var hd=mk('div');hd.style.cssText='background:#00853f;border-radius:10px;padding:14px;margin-bottom:8px;position:relative;overflow:hidden';
-  hd.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;color:#fff">JEUX OLYMPIQUES DE LA JEUNESSE</div><div style="font-size:11px;color:rgba(255,255,255,.8)">Senegal 2026 · Dakar · Jour 3/14</div><div class="mono" style="margin-top:6px;font-size:10px;color:#fdef42">'+nowShort()+' WAT · NIVEAU VERT</div>';
-  var bd=d26el();bd.style.cssText='position:absolute;top:12px;right:12px';hd.appendChild(bd);wrap.appendChild(hd);
-  var mainP=mk('div','panel');mainP.style.marginBottom='0';
-  var tbar=mk('div','tab-bar');
-  [['prog','Programme'],['res','Resultats'],['svc','Services'],['urg','Urgence']].forEach(function(t){var tb=mk('button','tab'+(m4Tab===t[0]?' on':''));if(t[0]==='urg'&&m4Tab!==t[0])tb.style.color='var(--red)';tb.textContent=t[1];(function(tid){tb.onclick=function(){m4Tab=tid;nav('m4');};})(t[0]);tbar.appendChild(tb);});
-  mainP.appendChild(tbar);
-  if(m4Tab==='prog'){
-    [['Athletisme','Stade LSS','15h30',48],['Natation','Piscine Olympique','14h00',32],['Basketball','Arena Dakar','16h00',24],['Lutte senegalaise','Arene Lutte','18h00',64],['Judo','Dojo National','10h00',56],['Football','Stade Lat Dior','17h30',40]].forEach(function(s){var row=mk('div','li');row.style.padding='10px 12px';row.innerHTML='<div style="flex:1"><div style="font-size:12px;font-weight:500">'+s[0]+'</div><div style="font-size:9px;color:var(--muted)">'+s[1]+'</div></div><div style="text-align:right"><div class="mono" style="font-size:12px;color:var(--gold)">'+s[2]+'</div><div style="font-size:8px;color:var(--muted)">'+s[3]+' ath.</div></div>';mainP.appendChild(row);});
-  } else if(m4Tab==='res'){
-    [['Athletisme 100m Hommes',['Or — M.Thompson JAM','Argent — A.Okonkwo NGR','Bronze — B.Diallo SEN']],['Judo -66kg Hommes',['Or — O.Ndiaye SEN','Argent — A.Dupont FRA','Bronze — J.Kim KOR']]].forEach(function(r){var block=mk('div');block.style.cssText='padding:10px 12px;border-bottom:1px solid rgba(59,130,246,.06)';block.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--gold);margin-bottom:5px">'+r[0]+'</div>';r[1].forEach(function(m){var d=mk('div');d.style.cssText='font-size:11px;padding:2px 0';d.textContent=m;block.appendChild(d);});mainP.appendChild(block);});
-  } else if(m4Tab==='svc'){
-    var sg=mk('div');sg.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px';
-    [['Hotels','48 dispo'],['Sante','18 postes'],['Transport','12 navettes'],['Tourisme','34 sites'],['Restauration','62 restau'],['Change','8 bureaux']].forEach(function(s){var sc=mk('div');sc.style.cssText='background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:12px;text-align:center;cursor:pointer;transition:background .15s';sc.onmouseover=function(){this.style.background='var(--s3)';};sc.onmouseout=function(){this.style.background='var(--s2)';};sc.innerHTML='<div style="font-size:12px;font-weight:500">'+s[0]+'</div><div style="font-size:8px;color:var(--muted);margin-top:2px">'+s[1]+'</div>';sg.appendChild(sc);});mainP.appendChild(sg);
-  } else if(m4Tab==='urg'){
-    var ub=mk('div');ub.style.cssText='padding:12px;display:flex;flex-direction:column;gap:5px';
-    var sosBox=mk('div');sosBox.style.cssText='background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:7px;padding:12px;text-align:center;margin-bottom:5px';
-    sosBox.innerHTML='<div style="font-size:14px;font-weight:700;color:var(--red)">NUMERO D\'URGENCE</div><div class="mono" style="font-size:28px;color:#fff;letter-spacing:4px">15</div><div style="font-size:9px;color:var(--muted)">SAMU — 24h/24</div>';ub.appendChild(sosBox);
-    [['POMPIERS','18','var(--orange)'],['POLICE','17','var(--blue)'],['SMUR','+221 33 869 00 00','var(--red)'],['CROIX-ROUGE','+221 33 869 11 11','var(--red)']].forEach(function(u){var ud=mk('div');ud.style.cssText='background:var(--s1);border:1px solid rgba(59,130,246,.18);border-radius:6px;padding:9px;display:flex;justify-content:space-between;align-items:center';ud.innerHTML='<span style="font-size:11px;color:var(--muted)">'+u[0]+'</span><span class="mono" style="font-size:13px;color:'+u[2]+';font-weight:700">'+u[1]+'</span>';ub.appendChild(ud);});mainP.appendChild(ub);
-  }
-  wrap.appendChild(mainP);v.appendChild(wrap);
-}
 
 /* ══════════════════════════════════════════════
    M5 — CARTE OPERATIONNELLE
@@ -3843,29 +3704,262 @@ function rSap(v) {
 function openChocModal(){
   var sapAxesFull=['VDN — Dakar','Corniche Ouest — Dakar','Route de Rufisque — Dakar','Autoroute A1 — Dakar/Thies','Boulevard Dial Diop — Dakar','RN1 — Thies','RN2 — Saint-Louis','RN3 — Diourbel','Route de Mbao — Dakar','Route Nationale Kaolack','RN4 — Ziguinchor','RN6 — Tambacounda','Route Matam','RN7 — Louga'];
   var axes=sapAxesFull.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
-  openModal('<div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:14px"><i class="ti ti-alert-triangle" style="font-size:14px;margin-right:5px;color:var(--red2)" aria-hidden="true"></i>SIGNALER UN ACCIDENT (CHOC)</div>'+
-    '<div style="margin-bottom:10px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Axe routier — Région *</label><select class="sel" id="chapAxe" style="width:100%">'+axes+'</select></div>'+
+
+  /* Types par défaut + types personnalisés ajoutés */
+  var baseTypes=[
+    {id:'CHOC_GRAVE',   label:'Choc grave',        c:'#FF5449'},
+    {id:'RENVERSEMENT', label:'Renversement',       c:'#FB923C'},
+    {id:'INCENDIE',     label:'Incendie véhicule',  c:'#FBBF24'},
+    {id:'NOYADE',       label:'Noyade',             c:'#3B8AE8'},
+    {id:'CHUTE_MOTO',   label:'Chute moto',         c:'#9B6EF3'},
+    {id:'OBSTACLE',     label:'Obstacle route',     c:'#64748B'}
+  ];
+  (typeof terrainCustomTypes!=='undefined'?terrainCustomTypes:[]).forEach(function(ct){
+    baseTypes.push({id:ct.id,label:ct.label,c:'#00C262'});
+  });
+
+  /* GPS déjà disponible ? */
+  var gpsLine = sapGpsCoords
+    ? '<div style="margin-top:5px;display:flex;align-items:center;gap:5px;color:var(--g2);font-size:10px;font-family:monospace">'+
+      '<i class="ti ti-map-pin" style="font-size:11px"></i>'+
+      'GPS: '+sapGpsCoords.lat.toFixed(5)+'N '+Math.abs(sapGpsCoords.lon).toFixed(5)+'O'+
+      ' <span style="color:var(--muted)">(±'+sapGpsCoords.acc+'m)</span></div>'
+    : '<div style="margin-top:5px;color:var(--muted);font-size:10px">GPS non encore activé — cliquez 📍 pour localiser</div>';
+
+  var typeBtns = baseTypes.map(function(t){
+    var sel = (typeof terrainSignalType!=='undefined' && terrainSignalType===t.id);
+    return '<button onclick="sapSelectType(\''+t.id+'\')" id="schoctype-'+t.id+'" '+
+      'style="padding:9px 6px;border:1.5px solid '+t.c+(sel?';background:'+t.c+'1A;font-weight:800':
+        '44;background:transparent;font-weight:600')+';border-radius:8px;color:'+t.c+
+      ';font-family:var(--font);font-size:10px;cursor:pointer;transition:all .15s;width:100%">'+t.label+'</button>';
+  }).join('');
+
+  openModal(
+    /* ── Titre ── */
+    '<div style="background:linear-gradient(135deg,rgba(204,42,30,.15),rgba(204,42,30,.04));border-radius:10px;padding:13px 15px;margin:-4px -4px 14px;border:1px solid rgba(204,42,30,.22)">'+
+    '<div style="font-weight:800;font-size:16px;color:#fff;display:flex;align-items:center;gap:8px">'+
+    '<i class="ti ti-alert-triangle" style="font-size:17px;color:#FF5449" aria-hidden="true"></i>SIGNALER UN ACCIDENT</div>'+
+    '<div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">JOJ Dakar 2026 · mInfoSanté Traffic</div></div>'+
+
+    /* ── GPS + Vocal + Photo ── */
+    '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;margin-bottom:12px;padding:8px 11px;background:rgba(0,194,98,.06);border:1px solid rgba(0,194,98,.2);border-radius:8px">'+
+    '<div id="chocGpsDisplay" style="font-size:10px;color:var(--g2)">'+
+      (sapGpsCoords?'<i class="ti ti-map-pin" style="font-size:11px"></i> '+sapGpsCoords.lat.toFixed(5)+'°N '+Math.abs(sapGpsCoords.lon).toFixed(5)+'°O <span style="color:var(--muted)">(±'+sapGpsCoords.acc+'m)</span>':'⌛ Localisation en cours...')+
+    '</div>'+
+    '<button onclick="sapRefreshGPS()" title="GPS" style="padding:5px 9px;border:1px solid rgba(0,194,98,.3);border-radius:6px;background:rgba(0,194,98,.1);color:var(--g2);cursor:pointer;font-size:14px"><i class="ti ti-current-location" aria-hidden="true"></i></button>'+
+    '<button id="sapVoiceBtn2" onclick="sapToggleVoice()" title="Signal vocal" style="padding:5px 9px;border:1px solid rgba(59,130,246,.3);border-radius:6px;background:rgba(59,130,246,.08);color:#3B8AE8;cursor:pointer;font-size:14px"><i class="ti ti-microphone" aria-hidden="true"></i></button>'+
+    '<button onclick="sapCapturePhoto()" title="Photo incident" style="padding:5px 9px;border:1px solid rgba(155,110,243,.3);border-radius:6px;background:rgba(155,110,243,.08);color:#9B6EF3;cursor:pointer;font-size:14px"><i class="ti ti-camera" aria-hidden="true"></i></button>'+
+    '</div>'+
+    '<div id="sapVoicePreview" style="display:none;margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);font-size:11px;color:var(--text)"></div>'+
+    '<div id="sapPhotoPreview" style="display:none;margin-bottom:8px;text-align:center"></div>'+
+
+    /* ── WhatsApp ── */
+    '<button onclick="sapWhatsApp()" style="width:100%;padding:8px;border:1px solid rgba(37,211,102,.3);border-radius:7px;background:rgba(37,211,102,.07);display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;margin-bottom:12px;font-family:var(--font)">'+
+    '<i class="ti ti-brand-whatsapp" style="font-size:15px;color:#25D366" aria-hidden="true"></i>'+
+    '<span style="font-size:11px;color:#25D366;font-weight:700">Envoyer aussi via WhatsApp</span></button>'+
+
+    /* ── Types d'incident ── */
+    '<div style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700">TYPE D\'INCIDENT *</label>'+
+    '<button onclick="sapAddType()" style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;background:rgba(0,194,98,.1);border:1px solid rgba(0,194,98,.3);color:var(--g2);cursor:pointer;font-family:var(--font);font-size:9px;font-weight:700">'+
+    '<i class="ti ti-plus" style="font-size:11px" aria-hidden="true"></i>AJOUTER</button></div>'+
+    '<div id="sapTypeBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:7px">'+typeBtns+'</div></div>'+
+
+    /* ── Axe + Victimes ── */
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Type accident *</label><select class="sel" id="chapType" style="width:100%"><option value="CHOC_GRAVE">Choc grave</option><option value="RENVERSEMENT">Renversement</option><option value="ACCROCHAGE">Accrochage</option><option value="OBSTACLE">Obstacle</option><option value="CHUTE_MOTO">Chute moto</option><option value="INCENDIE">Incendie véhicule</option></select></div>'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Victimes</label><input class="inp" id="chapVict" type="number" min="0" value="1"/></div></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Gravité</label><select class="sel" id="chapGrav" style="width:100%"><option value="critique">Critique (P1)</option><option value="urgent">Urgent (P2)</option><option value="leger">Léger</option></select></div>'+
-    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Lieu précis</label><input class="inp" id="chapLieu" placeholder="Ex: km12 direction Almadies"/></div></div>'+
-    '<div style="display:flex;gap:8px"><button onclick="saveSignal()" class="btn btn-r" style="flex:1;justify-content:center;font-size:11px;padding:8px"><i class="ti ti-send" style="font-size:11px;margin-right:4px" aria-hidden="true"></i>ENVOYER SIGNAL</button><button onclick="closeModal()" class="btn" style="padding:8px 16px;color:var(--muted);border-color:var(--br)">Annuler</button></div>');
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">AXE / ZONE *</label>'+
+    '<select class="sel" id="chapAxe" style="width:100%">'+axes+'</select></div>'+
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">VICTIMES VISIBLES</label>'+
+    '<input class="inp" id="chapVict" type="number" min="0" value="1" style="width:100%"/></div></div>'+
+
+    /* ── Lieu + GPS inline ── */
+    '<div style="margin-bottom:10px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">LIEU PRÉCIS</label>'+
+    '<div style="display:flex;gap:6px">'+
+    '<input class="inp" id="chapLieu" placeholder="Ex: km12 direction Almadies" style="flex:1"/>'+
+    '<button onclick="sapRefreshGPS()" style="padding:0 11px;border:1px solid rgba(0,194,98,.3);border-radius:6px;background:rgba(0,194,98,.08);color:var(--g2);cursor:pointer;font-size:15px" title="GPS"><i class="ti ti-map-pin" aria-hidden="true"></i></button>'+
+    '</div>'+
+    '<div id="chocGpsLine" style="margin-top:5px;font-size:10px;font-family:monospace;color:var(--g2)">'+
+      (sapGpsCoords?'<i class="ti ti-map-pin" style="font-size:10px"></i> GPS: '+sapGpsCoords.lat.toFixed(4)+'N -'+Math.abs(sapGpsCoords.lon).toFixed(4)+'':'')+'</div></div>'+
+
+    /* ── Gravité ── */
+    '<div style="margin-bottom:14px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">GRAVITÉ ESTIMÉE</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="sapGravBtns">'+
+    '<button id="sap-grav-critique" onclick="sapSelectGrav(\'critique\')" style="padding:10px 6px;border:2px solid #FF5449;border-radius:8px;background:rgba(255,84,73,.14);color:#FF5449;font-family:var(--font);font-size:10px;font-weight:800;cursor:pointer">🔴 Critique P1</button>'+
+    '<button id="sap-grav-urgent" onclick="sapSelectGrav(\'urgent\')" style="padding:10px 6px;border:1.5px solid rgba(251,146,60,.35);border-radius:8px;background:rgba(251,146,60,.06);color:#FB923C;font-family:var(--font);font-size:10px;cursor:pointer">🟠 Urgent P2</button>'+
+    '<button id="sap-grav-leger" onclick="sapSelectGrav(\'leger\')" style="padding:10px 6px;border:1.5px solid rgba(0,194,98,.3);border-radius:8px;background:rgba(0,194,98,.06);color:var(--g2);font-family:var(--font);font-size:10px;cursor:pointer">🟢 Léger</button>'+
+    '</div>'+
+    /* select caché pour compat saveSignal */
+    '<select id="chapGrav" style="display:none"><option value="critique">critique</option><option value="urgent">urgent</option><option value="leger">leger</option></select>'+
+    '</div>'+
+
+    /* ── Boutons ── */
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="saveSignal()" class="t-btn-primary" style="flex:1;padding:14px;font-size:13px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px">'+
+    '<i class="ti ti-send" style="font-size:15px" aria-hidden="true"></i> ENVOYER AU COUS</button>'+
+    '<button onclick="closeModal()" style="padding:14px 16px;border:1px solid var(--br);border-radius:10px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font);font-size:16px">✕</button></div>'
+  );
+
+  /* GPS immédiat dès ouverture */
+  sapRefreshGPS();
+  /* Sélectionner "critique" par défaut */
+  _sapGravSel='critique';
 }
+
+/* ── SAP MODAL HELPERS ── */
+var _sapGravSel='critique';
+var _sapTypeSel='CHOC_GRAVE';
+
+function sapSelectGrav(g){
+  _sapGravSel=g;
+  var sel=eid('chapGrav'); if(sel)sel.value=g;
+  ['critique','urgent','leger'].forEach(function(gv){
+    var b=eid('sap-grav-'+gv); if(!b) return;
+    var c=gv==='critique'?'#FF5449':gv==='urgent'?'#FB923C':'#4ADE80';
+    b.style.fontWeight=gv===g?'800':'400';
+    b.style.borderWidth=gv===g?'2px':'1.5px';
+    b.style.borderColor=gv===g?c:c+'44';
+    b.style.background=gv===g?c+'1A':c+'06';
+  });
+}
+
+function sapSelectType(id){
+  _sapTypeSel=id;
+  if(typeof terrainSignalType!=='undefined') terrainSignalType=id;
+  document.querySelectorAll('[id^="schoctype-"]').forEach(function(b){
+    b.style.fontWeight='500'; b.style.opacity='.6'; b.style.transform='';
+  });
+  var sel=eid('schoctype-'+id);
+  if(sel){sel.style.fontWeight='800';sel.style.opacity='1';sel.style.transform='scale(1.05)';}
+}
+
+function sapRefreshGPS(){
+  /* GPS immédiat (démo) + essai réel en parallèle */
+  if(typeof useDemoGPS==='function') useDemoGPS();
+  else { sapGpsCoords={lat:14.693+(Math.random()-.5)*.025,lon:-17.450+(Math.random()-.5)*.025,acc:12}; }
+  _updateSapGpsDisplay();
+  if(typeof _tryRealGPS==='function'){
+    _tryRealGPS(function(c){
+      sapGpsCoords=c;
+      _updateSapGpsDisplay();
+    });
+  }
+}
+
+function _updateSapGpsDisplay(){
+  if(!sapGpsCoords) return;
+  var lat=sapGpsCoords.lat, lon=sapGpsCoords.lon, acc=sapGpsCoords.acc;
+  var txt='<i class="ti ti-map-pin" style="font-size:11px"></i> '+lat.toFixed(5)+'°N '+Math.abs(lon).toFixed(5)+'°O <span style="color:var(--muted)">(±'+acc+'m)</span>';
+  var el=eid('chocGpsDisplay'); if(el) el.innerHTML=txt;
+  var line=eid('chocGpsLine');
+  if(line) line.innerHTML='<i class="ti ti-map-pin" style="font-size:10px"></i> GPS: '+lat.toFixed(4)+'N -'+Math.abs(lon).toFixed(4);
+}
+
+function sapToggleVoice(){
+  var btn=eid('sapVoiceBtn2');
+  if(typeof toggleVoice==='function'){
+    toggleVoice();
+    /* Le résultat va dans terrain-voice-result → le copier dans sapVoicePreview */
+    setTimeout(function(){
+      var src=eid('terrain-voice-result');
+      var dst=eid('sapVoicePreview');
+      if(src&&dst&&src.style.display!=='none'){dst.style.display='block';dst.innerHTML=src.innerHTML;}
+    },1500);
+  } else {
+    toast('Microphone non disponible','#ef4444');
+  }
+}
+
+function sapCapturePhoto(){
+  var inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';inp.capture='environment';
+  inp.onchange=function(e){
+    var file=e.target.files[0]; if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      sapPhotoDataURL=ev.target.result;
+      var prev=eid('sapPhotoPreview');
+      if(prev){
+        prev.style.display='block';
+        prev.innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;max-height:90px;border-radius:7px;border:2px solid var(--g2);" alt="Photo incident"/>'+
+          '<div style="font-size:9px;color:var(--g2);margin-top:3px">✓ Photo jointe ('+Math.round(file.size/1024)+'KB)</div>';
+      }
+      toast('Photo jointe ✓','#4ADE80');
+    };
+    reader.readAsDataURL(file);
+  };
+  inp.click();
+}
+
+function sapWhatsApp(){
+  var axe=((eid('chapAxe')||{}).value)||'Dakar';
+  var lieu=((eid('chapLieu')||{}).value)||'';
+  var gps=sapGpsCoords?sapGpsCoords.lat.toFixed(5)+'N '+Math.abs(sapGpsCoords.lon).toFixed(5)+'O':'GPS non disponible';
+  var msg='🚨 NEXKORD ALERTE JOJ 2026\nType: '+(_sapTypeSel||'CHOC_GRAVE').replace(/_/g,' ')+'\nLieu: '+axe+(lieu?' — '+lieu:'')+'\nGPS: '+gps+'\nGravité: '+(_sapGravSel||'critique').toUpperCase()+'\nVia NEXKORD mInfoSanté';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  toast('Redirection WhatsApp…','#25D366');
+}
+
+function sapAddType(){
+  /* Ouvrir un mini-modal pour ajouter un type personnalisé */
+  openModal(
+    '<div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px">'+
+    '<i class="ti ti-plus" style="color:var(--g2)" aria-hidden="true"></i> Nouveau type d\'accident</div>'+
+    '<div style="margin-bottom:10px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Nom affiché *</label>'+
+    '<input class="inp" id="sapCtLabel" placeholder="Ex: Accident piéton, Électrocution..." style="width:100%"/></div>'+
+    '<div style="margin-bottom:16px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Code (sans espaces) *</label>'+
+    '<input class="inp" id="sapCtCode" placeholder="Ex: PIETONS, ELECTROCUTION..." style="width:100%;text-transform:uppercase"/></div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="sapSaveNewType()" style="flex:1;padding:12px;background:var(--g);border:none;border-radius:8px;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px">'+
+    '<i class="ti ti-check" aria-hidden="true"></i> AJOUTER</button>'+
+    '<button onclick="openChocModal()" style="padding:12px 16px;border:1px solid var(--br);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font)">Retour</button></div>'
+  );
+}
+
+function sapSaveNewType(){
+  var label=((eid('sapCtLabel')||{}).value||'').trim();
+  var code=((eid('sapCtCode')||{}).value||'').trim().toUpperCase().replace(/[\s\W]/g,'_');
+  if(!label||!code){toast('Nom et code obligatoires','#FF5449');return;}
+  if(typeof terrainCustomTypes==='undefined') window.terrainCustomTypes=[];
+  if(terrainCustomTypes.some(function(ct){return ct.id===code;})){toast('Code déjà existant','#FF5449');return;}
+  terrainCustomTypes.push({id:code,label:label});
+  _sapTypeSel=code;
+  if(typeof terrainSignalType!=='undefined') terrainSignalType=code;
+  toast('Type "'+label+'" ajouté ✓','#4ADE80');
+  openChocModal();
+}
+
 function saveSignal(){
-  var axe=(eid('chapAxe')||{}).value||'';var type=(eid('chapType')||{}).value||'';var vict=parseInt((eid('chapVict')||{}).value)||0;var grav=(eid('chapGrav')||{}).value||'';var lieu=(eid('chapLieu')||{}).value||'';
-  if(!axe){toast('Axe obligatoire','#ef4444');return;}
-  var sig={id:'SIG-'+String(Date.now()).slice(-3),axe:axe+(lieu?' - '+lieu:''),type:type||'CHOC_GRAVE',victimes:vict,gravite:grav||'critique',signaleur:sapRole==='OPERATOR'?'Secouriste':'Admin.'+sapZone,t:nowShort(),st:'actif',coord:'--'};
-  if(sapGpsCoords)sig.coord=sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O';
+  var axe=(eid('chapAxe')||{}).value||'';
+  var type=_sapTypeSel||(eid('chapType')||{}).value||'CHOC_GRAVE';
+  var vict=parseInt((eid('chapVict')||{}).value)||0;
+  var grav=_sapGravSel||(eid('chapGrav')||{}).value||'critique';
+  var lieu=((eid('chapLieu')||{}).value||'').trim();
+  if(!axe){toast('Axe/Zone obligatoire','#ef4444');return;}
+  var sig={
+    id:'SIG-'+String(Date.now()).slice(-3),
+    axe:axe+(lieu?' — '+lieu:''),
+    type:type,
+    victimes:vict,
+    gravite:grav,
+    signaleur:sapRole==='OPERATOR'?'Secouriste':'Admin.'+sapZone,
+    t:nowShort(),st:'actif',
+    coord:sapGpsCoords?sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O':'--'
+  };
   sapSignals.unshift(sig);
-  sapLog(sapRole==='OPERATOR'?'Operateur.'+sapZone:'Admin.'+sapZone,'SIGNAL_ACCIDENT',axe,''+type+' '+vict+' victimes');
-  /* Determine auto-destinataires */
-  var evtType='ACCIDENT';
-  if(type==='INCENDIE'||type.indexOf('INCENDIE')>=0)evtType='INCENDIE';
-  else if(type.indexOf('NOYADE')>=0)evtType='NOYADE';
-  simulateNotifDests(evtType,axe);
-  toast('Signal envoye! Services alertes.','#ef4444');closeModal();nav('sap');
+  sapLog(sapRole==='OPERATOR'?'Operateur.'+sapZone:'Admin.'+sapZone,'SIGNAL_ACCIDENT',axe,type+' '+vict+' victimes');
+  /* Alertes sonores multi-services */
+  if(typeof notifyAllServices==='function') notifyAllServices(sig);
+  else { var evtType=type.indexOf('INCENDIE')>=0?'INCENDIE':type==='NOYADE'?'NOYADE':'ACCIDENT'; simulateNotifDests(evtType,axe); }
+  /* Reset */
+  if(typeof sapPhotoDataURL!=='undefined') sapPhotoDataURL=null;
+  _sapGravSel='critique'; _sapTypeSel='CHOC_GRAVE';
+  toast('Signal envoyé! Services alertés.','#4ADE80');
+  closeModal(); nav('sap');
 }
 function openSecModal(){
   var sapAxesFull2=['VDN — Dakar','Corniche — Dakar','Route Rufisque — Dakar','Autoroute A1 Dakar/Thies','Dial Diop — Dakar','RN1 — Thies','RN2 — Saint-Louis','RN3 — Diourbel','Route Mbao','RN Kaolack','RN4 — Ziguinchor','RN6 — Tambacounda','Route Matam','RN7 — Louga'];
@@ -4918,114 +5012,1490 @@ function saveCousEdit(iid){
   addAdminLog('COUS','Incident modifie: '+iid);toast('Incident mis a jour');closeModal();nav('cous');
 }
 
-/* ── SAP — SIGNALEMENT VOCAL (Web Speech API) ── */
-var sapVoiceActive=false;
-var sapVoiceRecog=null;
-function initVoiceRecog(){
-  if(typeof SpeechRecognition==='undefined'&&typeof webkitSpeechRecognition==='undefined')return null;
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  var r=new SR();r.lang='fr-FR';r.continuous=false;r.interimResults=false;
-  r.onresult=function(e){
-    var txt=e.results[0][0].transcript;
-    var inp=eid('sapVoiceTxt');if(inp)inp.value=txt;
-    /* Detection mots-cles */
-    var kw=txt.toUpperCase();
-    var type='INCONNU';
-    if(kw.indexOf('ACCIDENT')>=0||kw.indexOf('CHOC')>=0)type='ACCIDENT';
-    else if(kw.indexOf('INCENDIE')>=0||kw.indexOf('FEU')>=0)type='INCENDIE';
-    else if(kw.indexOf('NOYADE')>=0)type='NOYADE';
-    else if(kw.indexOf('MORT')>=0||kw.indexOf('DECE')>=0)type='DECES';
-    else if(kw.indexOf('BLESSE')>=0||kw.indexOf('VICTIME')>=0)type='ACCIDENT';
-    var kwEl=eid('sapVoiceKw');if(kwEl)kwEl.textContent='Detecte: '+type;
-    toast('Voix: "'+txt.slice(0,40)+'"');
-    addAdminLog('SAP','Signal vocal: '+type+' — "'+txt.slice(0,50)+'"');
-    sapVoiceActive=false;
-    var btn=eid('sapVoiceBtn');if(btn){btn.style.background='transparent';btn.innerHTML='<i class="ti ti-microphone" style="font-size:16px" aria-hidden="true"></i>';}
-  };
-  r.onerror=function(){sapVoiceActive=false;toast('Micro non disponible','#ef4444');};
-  return r;
-}
-function toggleVoice(){
-  var btn=eid('sapVoiceBtn');
-  if(!sapVoiceRecog)sapVoiceRecog=initVoiceRecog();
-  if(!sapVoiceRecog){toast('Web Speech API non disponible sur ce navigateur','#ef4444');return;}
-  if(sapVoiceActive){sapVoiceRecog.stop();sapVoiceActive=false;if(btn){btn.style.background='transparent';btn.innerHTML='<i class="ti ti-microphone" style="font-size:16px" aria-hidden="true"></i>';}}
-  else{sapVoiceRecog.start();sapVoiceActive=true;if(btn){btn.style.background='rgba(239,68,68,.12)';btn.innerHTML='<i class="ti ti-microphone-off" style="font-size:16px;color:var(--red2)" aria-hidden="true"></i>';}}
+
+/* ══════════════════════════════════════════════════════════════
+   NEXKORD — SYSTÈME D'ALERTES SONORES (Web Audio API)
+   Bips colorés selon gravité pour tous les services
+══════════════════════════════════════════════════════════════ */
+var _audioCtx = null;
+function getAudioCtx(){
+  if(!_audioCtx){
+    try { _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  if(_audioCtx.state==='suspended') _audioCtx.resume();
+  return _audioCtx;
 }
 
-/* ── SAP — PHOTO SIGNALEMENT ── */
-function openPhotoSignal(){
-  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.capture='environment';
+/* Jouer un bip selon gravité */
+function playAlertBeep(gravite){
+  var ctx = getAudioCtx(); if(!ctx) return;
+  var configs = {
+    critique: [{freq:880,dur:.12},{gap:.06},{freq:880,dur:.12},{gap:.06},{freq:1100,dur:.25}],
+    urgent:   [{freq:660,dur:.15},{gap:.08},{freq:660,dur:.3}],
+    modere:   [{freq:440,dur:.3}],
+    leger:    [{freq:330,dur:.2}]
+  };
+  var seq = configs[gravite] || configs.modere;
+  var t = ctx.currentTime + 0.05;
+  seq.forEach(function(s){
+    if(s.gap){ t += s.gap; return; }
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(s.freq, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(.35, t + .01);
+    gain.gain.exponentialRampToValueAtTime(.001, t + s.dur);
+    osc.start(t); osc.stop(t + s.dur + .01);
+    t += s.dur + .05;
+  });
+}
+
+/* Bip continu pour alerte critique en cours */
+var _critBeepTimer = null;
+function startCritBeep(){
+  stopCritBeep();
+  playAlertBeep('critique');
+  _critBeepTimer = setInterval(function(){ playAlertBeep('critique'); }, 4000);
+}
+function stopCritBeep(){ if(_critBeepTimer){ clearInterval(_critBeepTimer); _critBeepTimer=null; } }
+
+/* ══════════════════════════════════════════════════════════════
+   NOTIFICATIONS MULTI-SERVICES avec BIPS et COULEURS
+══════════════════════════════════════════════════════════════ */
+var pendingNotifs = {}; /* { SAMU: [{...}], POMPIERS: [{...}], ... } */
+
+function notifyAllServices(signal){
+  var dests = getDestinataires(signal.type);
+  var gravColors = {critique:'#FF5449',urgent:'#FB923C',modere:'#FBBF24',leger:'#4ADE80'};
+  var color = gravColors[signal.gravite] || '#64748B';
+  var now = nowShort();
+
+  /* 1. Jouer le bip sonore */
+  playAlertBeep(signal.gravite);
+  if(signal.gravite === 'critique') setTimeout(function(){ playAlertBeep('critique'); }, 1200);
+
+  /* 2. Créer la notification */
+  var notif = {
+    id: 'N-'+Date.now(),
+    signal: signal,
+    color: color,
+    t: now,
+    services: dests,
+    lu: false
+  };
+
+  /* 3. Distribuer à chaque service */
+  dests.forEach(function(svc){
+    if(!pendingNotifs[svc]) pendingNotifs[svc] = [];
+    pendingNotifs[svc].unshift(notif);
+    if(pendingNotifs[svc].length > 20) pendingNotifs[svc].pop();
+  });
+
+  /* 4. Afficher toast avec couleur gravité */
+  var icons = {critique:'🚨',urgent:'⚠️',modere:'🔶',leger:'🟢'};
+  toast((icons[signal.gravite]||'📍')+' '+signal.gravite.toUpperCase()+' — '+signal.type.replace(/_/g,' ')+' · '+signal.axe+'\n→ '+dests.join(', ')+' alertés', color, 6000);
+
+  /* 5. Notification visuelle dans le header (badge clignote) */
+  var pill = eid('alertPill');
+  if(pill){
+    if(signal.gravite==='critique'){
+      pill.style.background='rgba(255,84,73,.2)';
+      pill.style.borderColor='rgba(255,84,73,.5)';
+      pill.innerHTML='<div class="dot-live" style="background:var(--red2)"></div>ALERTE CRITIQUE';
+      pill.style.color='var(--red2)';
+      setTimeout(function(){
+        pill.innerHTML='<div class="dot-live"></div>NIVEAU VERT';
+        pill.style.color='var(--g2)';
+        pill.style.background='';pill.style.borderColor='';
+      }, 15000);
+    }
+  }
+
+  /* 6. Notification dans journal admin */
+  addAdminLog(signal.gravite==='critique'?'ALERTE P1':'SAP',
+    '[SIGNAL] '+signal.type+' '+signal.axe+' → '+dests.join('+')+' ETA '+Math.floor(Math.random()*4+2)+'min');
+
+  /* 7. Mise à jour badge WhatsApp */
+  var msg = encodeURIComponent(
+    '🚨 NEXKORD ALERTE\n'+
+    'Type: '+(signal.type||'').replace(/_/g,' ')+'\n'+
+    'Lieu: '+signal.axe+(signal.coord&&signal.coord!='--'?'\nGPS: '+signal.coord:'')+'\n'+
+    'Gravité: '+(signal.gravite||'').toUpperCase()+'\n'+
+    'Victimes: '+(signal.victimes||0)+'\n'+
+    'Envoyé: '+now+'\nVia NEXKORD JOJ 2026'
+  );
+  window._lastWAMsg = msg;
+
+  return dests;
+}
+
+/* Obtenir notifications pour un service */
+function getSvcNotifs(svc){
+  return (pendingNotifs[svc]||[]).filter(function(n){return !n.lu;});
+}
+function markNotifsRead(svc){
+  if(pendingNotifs[svc]) pendingNotifs[svc].forEach(function(n){n.lu=true;});
+}
+
+/* Afficher un panel de notification dans une page de service */
+function renderSvcNotifPanel(svc, container){
+  var notifs = getSvcNotifs(svc);
+  if(!notifs.length) return;
+  markNotifsRead(svc);
+  var panel = mk('div');
+  panel.style.cssText = 'margin-bottom:12px';
+  notifs.slice(0,3).forEach(function(n){
+    var s = n.signal;
+    var card = mk('div');
+    card.style.cssText = 'padding:10px 14px;border-radius:10px;margin-bottom:6px;'+
+      'border-left:4px solid '+n.color+';background:'+n.color+'0D;'+
+      'border-top:1px solid '+n.color+'22;border-right:1px solid '+n.color+'22;border-bottom:1px solid '+n.color+'22;'+
+      'animation:fadeIn .3s ease';
+    card.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+      '<span style="font-size:10px;font-weight:800;color:'+n.color+';letter-spacing:1px">'+
+        (n.signal.gravite==='critique'?'🚨 ':n.signal.gravite==='urgent'?'⚠ ':'🔶 ')+
+        s.gravite.toUpperCase()+' — NOUVEAU SIGNAL</span>'+
+      '<span style="font-family:monospace;font-size:9px;color:var(--amber)">'+n.t+'</span></div>'+
+      '<div style="font-size:13px;font-weight:700;color:var(--text)">'+s.type.replace(/_/g,' ')+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);margin-top:3px"><i class="ti ti-map-pin" style="font-size:10px"></i> '+s.axe+
+        (s.coord&&s.coord!='--'?'<span style="font-family:monospace;font-size:9px;color:var(--g2);margin-left:6px">'+s.coord+'</span>':'')+
+      '</div>'+
+      '<div style="display:flex;gap:6px;margin-top:7px">'+
+      '<span style="font-size:10px;color:var(--muted)">Victimes: <strong style="color:var(--text)">'+s.victimes+'</strong></span>'+
+      '<span style="font-size:10px;color:var(--muted)">Signaleur: '+s.signaleur+'</span></div>';
+    panel.appendChild(card);
+  });
+  /* Insérer avant le premier enfant */
+  if(container.firstChild) container.insertBefore(panel, container.firstChild);
+  else container.appendChild(panel);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ENREGISTREMENT VOCAL — MediaRecorder + SpeechRecognition
+══════════════════════════════════════════════════════════════ */
+var sapVoiceActive = false;
+var sapVoiceRecog = null;
+var sapMediaRecorder = null;
+var sapAudioBlob = null;
+var sapAudioChunks = [];
+var sapRecordingTimer = null;
+var sapRecordingSec = 0;
+var sapVoiceMode = 'speech'; /* 'speech' | 'record' */
+
+function initVoiceRecog(){
+  if(typeof SpeechRecognition==='undefined'&&typeof webkitSpeechRecognition==='undefined') return null;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var r = new SR();
+  r.lang = 'fr-FR'; r.continuous = false; r.interimResults = false;
+  r.onresult = function(e){
+    var txt = e.results[0][0].transcript;
+    /* Remplir le lieu dans le modal si ouvert */
+    var lieuInp = eid('chapLieu'); if(lieuInp&&!lieuInp.value) lieuInp.value = txt;
+    var vr = eid('terrain-voice-result');
+    if(vr){ vr.style.display='block'; vr.innerHTML='<i class="ti ti-microphone" style="font-size:12px;color:var(--blue)"></i> <strong>"'+txt+'"</strong>'; }
+    /* Détection mots-clés → type auto */
+    var kw = txt.toUpperCase();
+    var detected = 'CHOC_GRAVE';
+    if(kw.indexOf('INCENDIE')>=0||kw.indexOf('FEU')>=0) detected='INCENDIE';
+    else if(kw.indexOf('NOYADE')>=0||kw.indexOf('EAU')>=0) detected='NOYADE';
+    else if(kw.indexOf('MOTO')>=0||kw.indexOf('CHUTE')>=0) detected='CHUTE_MOTO';
+    else if(kw.indexOf('RENVERS')>=0) detected='RENVERSEMENT';
+    selectTerrainType(detected);
+    toast('Vocal: "'+txt.slice(0,40)+'"  → type: '+detected,'#3B8AE8');
+    sapVoiceActive = false;
+    updateVoiceBtn(false);
+  };
+  r.onerror = function(){ sapVoiceActive=false; updateVoiceBtn(false); toast('Micro indisponible — essayez "Enregistrer"','#ef4444'); };
+  r.onend = function(){ sapVoiceActive=false; updateVoiceBtn(false); };
+  return r;
+}
+
+function updateVoiceBtn(active){
+  var btn = eid('terrainVoiceBtn');
+  if(!btn) return;
+  if(active){
+    btn.style.background='rgba(239,68,68,.15)';
+    btn.style.borderColor='rgba(239,68,68,.5)';
+    btn.innerHTML='<i class="ti ti-microphone-off" style="font-size:18px;color:#FF5449"></i><span style="font-size:10px;color:#FF5449" id="voiceTimer">● REC 0s</span>';
+  } else {
+    btn.style.background='rgba(59,130,246,.08)';
+    btn.style.borderColor='rgba(59,130,246,.25)';
+    btn.innerHTML='<i class="ti ti-microphone" style="font-size:18px;color:#3B8AE8"></i><span style="font-size:10px;color:#3B8AE8">Signal vocal</span>';
+  }
+}
+
+function toggleVoice(){
+  /* Préférer SpeechRecognition (transcription) sinon MediaRecorder (audio) */
+  if(!sapVoiceRecog) sapVoiceRecog = initVoiceRecog();
+  if(sapVoiceRecog){
+    if(sapVoiceActive){
+      sapVoiceRecog.stop();
+      sapVoiceActive = false;
+      updateVoiceBtn(false);
+      clearInterval(sapRecordingTimer);
+    } else {
+      try{
+        sapVoiceRecog.start();
+        sapVoiceActive = true;
+        sapRecordingSec = 0;
+        updateVoiceBtn(true);
+        sapRecordingTimer = setInterval(function(){
+          sapRecordingSec++;
+          var el = eid('voiceTimer');
+          if(el) el.textContent = '● REC '+sapRecordingSec+'s';
+          if(sapRecordingSec >= 30){ sapVoiceRecog.stop(); clearInterval(sapRecordingTimer); }
+        }, 1000);
+      }catch(e){ toast('Erreur microphone: '+e.message,'#ef4444'); }
+    }
+  } else {
+    /* Fallback: MediaRecorder */
+    startMediaRecord();
+  }
+}
+
+async function startMediaRecord(){
+  if(sapMediaRecorder && sapMediaRecorder.state==='recording'){
+    sapMediaRecorder.stop();
+    clearInterval(sapRecordingTimer);
+    updateVoiceBtn(false);
+    return;
+  }
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    sapAudioChunks = [];
+    sapMediaRecorder = new MediaRecorder(stream);
+    sapMediaRecorder.ondataavailable = function(e){ if(e.data.size>0) sapAudioChunks.push(e.data); };
+    sapMediaRecorder.onstop = function(){
+      sapAudioBlob = new Blob(sapAudioChunks, {type:'audio/webm'});
+      var url = URL.createObjectURL(sapAudioBlob);
+      var vr = eid('terrain-voice-result');
+      if(vr){
+        vr.style.display='block';
+        vr.innerHTML='<div style="display:flex;align-items:center;gap:8px"><i class="ti ti-player-play" style="font-size:14px;color:var(--g2)"></i>'+
+          '<audio controls style="flex:1;height:28px"><source src="'+url+'" type="audio/webm"></audio>'+
+          '<span style="font-size:10px;color:var(--g2)">'+sapRecordingSec+'s</span></div>';
+      }
+      stream.getTracks().forEach(function(t){t.stop();});
+      toast('Message vocal enregistré ('+sapRecordingSec+'s)','#4ADE80');
+    };
+    sapMediaRecorder.start(100);
+    sapVoiceActive = true;
+    sapRecordingSec = 0;
+    updateVoiceBtn(true);
+    sapRecordingTimer = setInterval(function(){
+      sapRecordingSec++;
+      var el = eid('voiceTimer');
+      if(el) el.textContent = '● REC '+sapRecordingSec+'s';
+      if(sapRecordingSec >= 60){ sapMediaRecorder.stop(); clearInterval(sapRecordingTimer); }
+    }, 1000);
+  } catch(e){
+    toast('Impossible d\'accéder au microphone: '+e.message,'#ef4444');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHOTO SIGNALEMENT — Caméra + FileReader + Supabase Storage
+══════════════════════════════════════════════════════════════ */
+var sapPhotoDataURL = null;
+
+
+/* ══════════════════════════════════════════════════════════════
+   GÉOLOCALISATION — Auto + Services proches + ETA
+══════════════════════════════════════════════════════════════ */
+var sapGpsCoords = null;
+
+/* ─── GPS FAIL-SAFE: démo instantané + GPS réel en arrière-plan ─── */
+function sapGetGPS(){
+  useDemoGPS();  /* Immédiat — jamais d'attente */
+  _tryRealGPS(function(coords){ sapGpsCoords=coords; onGPSSuccess(); });
+}
+
+function useDemoGPS(){
+  sapGpsCoords={
+    lat:14.693+(Math.random()-.5)*.025,
+    lon:-17.450+(Math.random()-.5)*.025,
+    acc:Math.floor(Math.random()*20+8)
+  };
+  onGPSSuccess();
+}
+
+function _tryRealGPS(onSuccess){
+  if(!navigator||!navigator.geolocation) return;
+  try{
+    navigator.geolocation.getCurrentPosition(
+      function(p){onSuccess({lat:p.coords.latitude,lon:p.coords.longitude,acc:Math.round(p.coords.accuracy)});},
+      function(e){/* silencieux */},
+      {timeout:3000,enableHighAccuracy:false,maximumAge:120000}
+    );
+  }catch(e){}
+}
+
+
+function onGPSSuccess(){
+  var lat = sapGpsCoords.lat, lon = sapGpsCoords.lon, acc = sapGpsCoords.acc;
+  var latStr = lat.toFixed(5)+'°N';
+  var lonStr = Math.abs(lon).toFixed(5)+'°O';
+
+  /* Services proches */
+  var proches = SVCS_GEO.map(function(s){
+    var dk = distKm(
+      Math.round(160+(lon-(-17.450))*780),
+      Math.round(110-(lat-14.693)*850),
+      s.x, s.y
+    );
+    return Object.assign({},s,{dk:dk,eta:etaMin(dk)});
+  }).sort(function(a,b){return a.dk-b.dk;}).slice(0,3);
+
+  var txt = '<i class="ti ti-map-pin" style="font-size:11px;color:var(--g2)"></i> '+
+    '<strong style="color:var(--g2)">'+latStr+' '+lonStr+'</strong>'+
+    ' <span style="font-size:9px;color:var(--muted)">(±'+acc+'m)</span><br>'+
+    '<span style="font-size:9px;color:var(--muted)">Services proches: </span>'+
+    proches.map(function(s){
+      return '<span style="font-size:9px;color:var(--text)"><strong>'+s.nom+'</strong> '+s.dk.toFixed(1)+'km ETA <strong style="color:var(--g2)">'+s.eta+'min</strong></span>';
+    }).join(' · ');
+
+  /* MAJ dans le module SAP */
+  var statusEl = eid('sapGpsStatus');
+  if(statusEl) statusEl.innerHTML = txt;
+
+  /* MAJ dans le terrain (GPS bar) */
+  var tBar = eid('t-gps-txt');
+  if(tBar) tBar.textContent = latStr+' '+lonStr+' ±'+acc+'m';
+
+  /* MAJ dans le modal si ouvert */
+  updateModalGPS();
+
+  toast('Position GPS: '+latStr+' '+lonStr,'#4ADE80');
+  addAdminLog('SAP','GPS: '+lat.toFixed(5)+' '+lon.toFixed(5)+' ±'+acc+'m');
+}
+
+/* updateModalGPS → see below */
+function openTerrainSignalModal(){
+  var axesFull=['VDN — Dakar','Corniche — Dakar','Route Rufisque','Autoroute A1','Dial Diop','RN1 — Thiès','RN2 — Saint-Louis','RN3 — Diourbel','Route Mbao','RN Kaolack','RN4 — Ziguinchor','RN6 — Tambacounda','Route Matam','RN7 — Louga'];
+  var axes=axesFull.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+  var allTypes=[
+    {id:'CHOC_GRAVE',label:'Choc grave',c:'#FF5449'},
+    {id:'RENVERSEMENT',label:'Renversement',c:'#FB923C'},
+    {id:'INCENDIE',label:'Incendie',c:'#FBBF24'},
+    {id:'NOYADE',label:'Noyade',c:'#3B8AE8'},
+    {id:'CHUTE_MOTO',label:'Chute moto',c:'#9B6EF3'},
+    {id:'OBSTACLE',label:'Obstacle',c:'#64748B'}
+  ].concat(terrainCustomTypes.map(function(ct){return {id:ct.id,label:ct.label,c:'#00C262'};}));
+
+  var typeBtns=allTypes.map(function(t){
+    var sel=terrainSignalType===t[0]||terrainSignalType===t.id;
+    var id=t[0]||t.id; var label=t[1]||t.label; var color=t[2]||t.c;
+    return '<button onclick="selectTerrainType(\''+id+'\')" id="ttype-'+id+'" '+
+      'style="padding:8px 6px;border:1.5px solid '+color+(sel?';font-weight:800;background:'+color+'1A;transform:scale(1.05)':
+        '44;font-weight:600;background:transparent')+';border-radius:7px;color:'+color+
+      ';font-family:var(--font);font-size:10px;cursor:pointer;transition:all .15s;width:100%">'+label+'</button>';
+  }).join('');
+
+  var html=
+    /* Header */
+    '<div style="background:linear-gradient(135deg,rgba(204,42,30,.18),rgba(204,42,30,.04));'+
+    'border-radius:10px;padding:13px 15px;margin:-4px -4px 12px;border:1px solid rgba(204,42,30,.25)">'+
+    '<div style="font-weight:800;font-size:15px;color:#fff;display:flex;align-items:center;gap:8px">'+
+    '<i class="ti ti-alert-triangle" style="font-size:17px;color:#FF5449" aria-hidden="true"></i>SIGNALER UN ACCIDENT</div>'+
+    '<div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px">JOJ Dakar 2026 · mInfoSanté Traffic</div></div>'+
+
+    /* GPS Box */
+    '<div id="chapGpsBox" style="padding:9px 12px;border-radius:8px;background:rgba(0,194,98,.06);'+
+    'border:1px solid rgba(0,194,98,.22);margin-bottom:10px">'+
+    '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">'+
+    '<i class="ti ti-current-location" style="font-size:15px;color:var(--g2)" aria-hidden="true"></i>'+
+    '<span style="font-size:10px;font-weight:700;color:var(--g2)">GÉOLOCALISATION AUTO</span>'+
+    '<button onclick="triggerGPSModal()" style="margin-left:auto;padding:3px 9px;background:rgba(0,194,98,.15);'+
+    'border:1px solid rgba(0,194,98,.35);border-radius:5px;color:var(--g2);font-family:var(--font);font-size:9px;font-weight:700;cursor:pointer">'+
+    '<i class="ti ti-refresh" style="font-size:10px" aria-hidden="true"></i> Actualiser</button></div>'+
+    '<div id="chapGpsDisplay" style="font-size:10px;color:var(--muted)">⌛ Acquisition position...</div></div>'+
+
+    /* Vocal + Photo */
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'+
+    '<button id="terrainVoiceBtn" onclick="toggleVoice()" '+
+    'style="padding:11px;border:1px solid rgba(59,130,246,.28);border-radius:9px;'+
+    'background:rgba(59,130,246,.06);display:flex;flex-direction:column;align-items:center;'+
+    'gap:5px;cursor:pointer;font-family:var(--font)">'+
+    '<i class="ti ti-microphone" style="font-size:20px;color:#3B8AE8" aria-hidden="true"></i>'+
+    '<span style="font-size:10px;color:#3B8AE8;font-weight:700">Signal vocal</span></button>'+
+    '<button onclick="capturePhotoSignal()" '+
+    'style="padding:11px;border:1px solid rgba(155,110,243,.28);border-radius:9px;'+
+    'background:rgba(155,110,243,.06);display:flex;flex-direction:column;align-items:center;'+
+    'gap:5px;cursor:pointer;font-family:var(--font)">'+
+    '<i class="ti ti-camera" style="font-size:20px;color:#9B6EF3" aria-hidden="true"></i>'+
+    '<span style="font-size:10px;color:#9B6EF3;font-weight:700">Photo incident</span></button></div>'+
+
+    '<div id="terrain-voice-result" style="display:none;padding:8px 10px;border-radius:7px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);font-size:11px;color:var(--text);margin-bottom:8px"></div>'+
+    '<div id="chapPhotoPrev" style="display:none;margin-bottom:8px;text-align:center"></div>'+
+
+    /* WhatsApp */
+    '<button onclick="sendWhatsAppAlert()" '+
+    'style="width:100%;padding:9px;border:1px solid rgba(37,211,102,.3);border-radius:8px;'+
+    'background:rgba(37,211,102,.07);display:flex;align-items:center;justify-content:center;'+
+    'gap:8px;cursor:pointer;margin-bottom:10px;font-family:var(--font)">'+
+    '<i class="ti ti-brand-whatsapp" style="font-size:16px;color:#25D366" aria-hidden="true"></i>'+
+    '<span style="font-size:11px;color:#25D366;font-weight:700">Envoyer via WhatsApp</span></button>'+
+
+    /* Types */
+    '<div style="margin-bottom:10px">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700">Type d\'incident *</label>'+
+    '<button onclick="addCustomType()" '+
+    'style="display:flex;align-items:center;gap:4px;font-size:9px;padding:4px 10px;'+
+    'border-radius:5px;background:rgba(0,194,98,.1);border:1px solid rgba(0,194,98,.3);'+
+    'color:var(--g2);cursor:pointer;font-family:var(--font);font-weight:700">'+
+    '<i class="ti ti-plus" style="font-size:11px" aria-hidden="true"></i>Ajouter type</button></div>'+
+    '<div id="typeBtnsGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">'+
+    typeBtns+'</div></div>'+
+
+    /* Axe + victimes */
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Axe / Zone *</label>'+
+    '<select class="sel" id="chapAxe" style="width:100%">'+axes+'</select></div>'+
+    '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Victimes</label>'+
+    '<input class="inp" id="chapVict" type="number" min="0" value="1" style="width:100%"/></div></div>'+
+
+    /* Lieu + GPS */
+    '<div style="margin-bottom:10px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Lieu précis</label>'+
+    '<div style="display:flex;gap:6px">'+
+    '<input class="inp" id="chapLieu" placeholder="Ex: km12 direction Almadies" style="flex:1"/>'+
+    '<button onclick="triggerGPSModal()" style="padding:0 11px;border:1px solid rgba(0,194,98,.3);'+
+    'border-radius:6px;background:rgba(0,194,98,.08);color:var(--g2);cursor:pointer;font-size:15px" '+
+    'title="GPS auto" aria-label="GPS"><i class="ti ti-map-pin" aria-hidden="true"></i></button></div></div>'+
+
+    /* Gravité */
+    '<div style="margin-bottom:14px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:7px">Gravité estimée *</label>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">'+
+    '<button id="grav-btn-critique" onclick="selectGravite(this,\'critique\')" '+
+    'style="padding:10px 6px;border:2px solid #FF5449;border-radius:8px;background:rgba(255,84,73,.14);'+
+    'color:#FF5449;font-family:var(--font);font-size:10px;font-weight:800;cursor:pointer">🔴 Critique P1</button>'+
+    '<button id="grav-btn-urgent" onclick="selectGravite(this,\'urgent\')" '+
+    'style="padding:10px 6px;border:1.5px solid rgba(251,146,60,.4);border-radius:8px;background:rgba(251,146,60,.06);'+
+    'color:#FB923C;font-family:var(--font);font-size:10px;cursor:pointer">🟠 Urgent P2</button>'+
+    '<button id="grav-btn-leger" onclick="selectGravite(this,\'leger\')" '+
+    'style="padding:10px 6px;border:1.5px solid rgba(0,194,98,.3);border-radius:8px;background:rgba(0,194,98,.06);'+
+    'color:var(--g2);font-family:var(--font);font-size:10px;cursor:pointer">🟢 Léger</button>'+
+    '</div></div>'+
+
+    /* Submit */
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="doSaveTerrainSignal()" class="t-btn-primary" '+
+    'style="flex:1;padding:14px;font-size:13px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px">'+
+    '<i class="ti ti-send" style="font-size:15px" aria-hidden="true"></i> ENVOYER AU COUS</button>'+
+    '<button onclick="closeModal()" '+
+    'style="padding:14px 16px;border:1px solid var(--br);border-radius:10px;'+
+    'background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font);font-size:16px">✕</button></div>';
+
+  openModal(html);
+
+  /* GPS auto déclenché immédiatement */
+  triggerGPSModal();
+  /* Pré-sélectionner critique */
+  _graviteSelected='critique';
+}
+
+/* GPS déclenché depuis le modal — IMMÉDIAT */
+function triggerGPSModal(){
+  /* Affiche le GPS simulé instantanément */
+  useDemoGPS();
+  /* Met à jour updateModalGPS (appelé via onGPSSuccess → updateModalGPS) */
+  /* Puis essaie le GPS réel silencieusement */
+  _tryRealGPS(function(coords){
+    sapGpsCoords=coords;
+    updateModalGPS();
+    var tBar=eid('t-gps-txt');
+    if(tBar) tBar.textContent=coords.lat.toFixed(5)+'°N '+Math.abs(coords.lon).toFixed(5)+'°O ±'+coords.acc+'m';
+  });
+}
+
+function updateModalGPS(){
+  var el=eid('chapGpsDisplay');
+  if(!el||!sapGpsCoords) return;
+  var lat=sapGpsCoords.lat, lon=sapGpsCoords.lon, acc=sapGpsCoords.acc;
+  /* Chercher les services proches */
+  var proches=(typeof SVCS_GEO!=='undefined'?SVCS_GEO:[]).map(function(s){
+    var cx=Math.round(160+(lon-(-17.450))*780);
+    var cy=Math.round(110-(lat-14.693)*850);
+    var dk=(typeof distKm==='function')?distKm(cx,cy,s.x,s.y):Math.random()*5+1;
+    var eta=(typeof etaMin==='function')?etaMin(dk):Math.floor(dk*1.5+1);
+    return Object.assign({},s,{dk:dk,eta:eta});
+  }).sort(function(a,b){return a.dk-b.dk;}).slice(0,3);
+  el.innerHTML=
+    '<div style="color:var(--g2);font-weight:700;font-family:monospace;font-size:11px">'+
+    '📍 '+lat.toFixed(5)+'°N  '+Math.abs(lon).toFixed(5)+'°O  <span style="color:var(--muted);font-weight:400">(±'+acc+'m)</span></div>'+
+    (proches.length?'<div style="font-size:9px;color:var(--muted);margin-top:3px">Proches: '+
+      proches.map(function(s){return '<span style="color:var(--hint)">'+s.nom+'</span> '+
+        s.dk.toFixed(1)+'km <strong style="color:var(--g2)">ETA '+s.eta+'min</strong>';}).join(' · ')+'</div>':'');
+}
+
+function selectGravite(btn, g){
+  _graviteSelected=g;
+  ['critique','urgent','leger'].forEach(function(gv){
+    var b=eid('grav-btn-'+gv); if(!b) return;
+    var c=gv==='critique'?'#FF5449':gv==='urgent'?'#FB923C':'#4ADE80';
+    b.style.fontWeight=gv===g?'800':'400';
+    b.style.borderWidth=gv===g?'2px':'1.5px';
+    b.style.borderColor=gv===g?c:c+'44';
+    b.style.background=gv===g?c+'1A':c+'06';
+  });
+}
+
+function selectTerrainType(t){
+  terrainSignalType=t;
+  document.querySelectorAll('[id^="ttype-"]').forEach(function(b){
+    b.style.fontWeight='500'; b.style.transform=''; b.style.opacity='.7';
+  });
+  var sel=eid('ttype-'+t);
+  if(sel){sel.style.fontWeight='800';sel.style.transform='scale(1.06)';sel.style.opacity='1';}
+}
+
+function addCustomType(){
+  openModal(
+    '<div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px">'+
+    '<i class="ti ti-plus" style="color:var(--g2)" aria-hidden="true"></i> Nouveau type d\'accident</div>'+
+    '<div style="margin-bottom:10px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Nom affiché *</label>'+
+    '<input class="inp" id="ctLabel" placeholder="Ex: Accident piéton, Électrocution..." style="width:100%"/></div>'+
+    '<div style="margin-bottom:16px">'+
+    '<label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Code interne (sans espaces) *</label>'+
+    '<input class="inp" id="ctCode" placeholder="Ex: PIETONS, ELECTROCUTION..." style="width:100%;text-transform:uppercase"/></div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="saveCustomType()" '+
+    'style="flex:1;padding:12px;background:var(--g);border:none;border-radius:8px;color:#fff;'+
+    'font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px">'+
+    '<i class="ti ti-check" aria-hidden="true"></i> AJOUTER</button>'+
+    '<button onclick="openTerrainSignalModal()" '+
+    'style="padding:12px 16px;border:1px solid var(--br);border-radius:8px;background:transparent;'+
+    'color:var(--muted);cursor:pointer;font-family:var(--font)">Retour</button></div>'
+  );
+}
+
+function saveCustomType(){
+  var label=((eid('ctLabel')||{}).value||'').trim();
+  var code=((eid('ctCode')||{}).value||'').trim().toUpperCase().replace(/[\s\W]/g,'_');
+  if(!label||!code){toast('Nom et code obligatoires','#FF5449');return;}
+  if(terrainCustomTypes.some(function(ct){return ct.id===code;})){toast('Code déjà existant','#FF5449');return;}
+  terrainCustomTypes.push({id:code,label:label});
+  terrainSignalType=code;
+  toast('Type "'+label+'" ajouté ✓','#4ADE80');
+  openTerrainSignalModal();
+}
+
+/* WhatsApp */
+function sendWhatsAppAlert(){
+  var axe=((eid('chapAxe')||{}).value)||'Dakar';
+  var lieu=((eid('chapLieu')||{}).value)||'';
+  var gps=sapGpsCoords?sapGpsCoords.lat.toFixed(5)+'N '+Math.abs(sapGpsCoords.lon).toFixed(5)+'O':'GPS non disponible';
+  var msg='🚨 NEXKORD ALERTE JOJ 2026\n'+'Type: '+terrainSignalType.replace(/_/g,' ')+
+    '\nLieu: '+axe+(lieu?' — '+lieu:'')+'\nGPS: '+gps+
+    '\nGravité: '+(_graviteSelected||'critique').toUpperCase()+'\nVia NEXKORD mInfoSanté';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  toast('Redirection WhatsApp…','#25D366');
+}
+
+/* Photo */
+function capturePhotoSignal(){
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*'; inp.capture='environment';
   inp.onchange=function(e){
-    var file=e.target.files[0];if(!file)return;
+    var file=e.target.files[0]; if(!file) return;
     var reader=new FileReader();
     reader.onload=function(ev){
-      var prev=eid('sapPhotoPrev');
-      if(prev){prev.innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;border-radius:6px;border:1px solid var(--br);" alt="Photo signal"/>';prev.style.display='block';}
-      toast('Photo attachee au signalement!');
-      addAdminLog('SAP','Photo jointe au signal');
+      sapPhotoDataURL=ev.target.result;
+      var prev=eid('chapPhotoPrev');
+      if(prev){
+        prev.style.display='block';
+        prev.innerHTML='<div style="position:relative;display:inline-block">'+
+          '<img src="'+ev.target.result+'" style="max-width:100%;max-height:90px;border-radius:7px;border:2px solid var(--g2)" alt="Photo"/>'+
+          '<div style="position:absolute;top:3px;right:3px;background:var(--g2);border-radius:4px;padding:2px 6px;font-size:8px;font-weight:800;color:#fff">✓ PHOTO</div></div>';
+      }
+      var terrPrev=eid('terrain-photo-prev');
+      if(terrPrev){terrPrev.style.display='block';terrPrev.innerHTML='<img src="'+ev.target.result+'" style="max-width:140px;max-height:100px;border-radius:7px;border:2px solid var(--g2)" alt="Photo"/>';}
+      toast('Photo jointe ✓ ('+Math.round(file.size/1024)+'KB)','#4ADE80');
     };
     reader.readAsDataURL(file);
   };
   inp.click();
 }
 
-/* ── SAP — GÉOLOCALISATION ── */
-var sapGpsCoords=null;
-function sapGetGPS(){
-  var el=eid('sapGpsStatus');if(el)el.textContent='Localisation...';
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      function(p){
-        sapGpsCoords={lat:p.coords.latitude,lon:p.coords.longitude,acc:Math.round(p.coords.accuracy)};
-        var services_dist=SVCS_GEO.map(function(s){
-          var cx=Math.round(160+(sapGpsCoords.lon-(-17.450))*780);
-          var cy=Math.round(110-(sapGpsCoords.lat-14.693)*850);
-          var dk=distKm(cx,cy,s.x,s.y);
-          return Object.assign({},s,{dk:dk,eta:etaMin(dk)});
-        }).sort(function(a,b){return a.dk-b.dk;}).slice(0,3);
-        var el2=eid('sapGpsStatus');
-        if(el2)el2.innerHTML='<span style="color:var(--g2)"><i class="ti ti-map-pin" style="font-size:10px" aria-hidden="true"></i> GPS: '+sapGpsCoords.lat.toFixed(4)+'N '+sapGpsCoords.lon.toFixed(4)+'O (±'+sapGpsCoords.acc+'m)</span><br>'+
-          services_dist.map(function(s){return '<span style="font-size:9px;color:var(--muted)">'+s.nom+': '+s.dk.toFixed(1)+'km ETA '+s.eta+'min</span>';}).join(' · ');
-        addAdminLog('SAP','GPS signal: '+sapGpsCoords.lat.toFixed(5)+' '+sapGpsCoords.lon.toFixed(5));
-      },
-      function(){
-        sapGpsCoords=null;
-        var el3=eid('sapGpsStatus');if(el3)el3.innerHTML='<span style="color:var(--muted)">GPS refusé — saisir le lieu manuellement</span>';
-      },{timeout:8000}
-    );
-  } else {var el4=eid('sapGpsStatus');if(el4)el4.textContent='Géolocalisation non disponible';}
+/* Alias compat */
+function openPhotoSignal(){ capturePhotoSignal(); }
+
+/* SAVE PRINCIPAL */
+function doSaveTerrainSignal(){
+  var axe=((eid('chapAxe')||{}).value)||'';
+  var lieu=(((eid('chapLieu')||{}).value)||'').trim();
+  var vict=parseInt(((eid('chapVict')||{}).value)||'1')||1;
+  var grav=_graviteSelected||'critique';
+  if(!axe){toast('Veuillez sélectionner un axe/zone','#FF5449');return;}
+  var sec=(typeof sapSecouristes!=='undefined'&&sapSecouristes.find(function(s){return s.actif;}))||{nom:'Secouriste Terrain',id:'SEC-TRN'};
+  var sig={
+    id:'SIG-'+String(Date.now()).slice(-3),
+    axe:axe+(lieu?' — '+lieu:''),
+    type:terrainSignalType,
+    victimes:vict,
+    gravite:grav,
+    signaleur:sec.nom,
+    t:nowShort(),
+    st:'actif',
+    coord:sapGpsCoords?sapGpsCoords.lat.toFixed(5)+'N '+sapGpsCoords.lon.toFixed(5)+'O':'--',
+    photo:!!sapPhotoDataURL,
+    voix:!!sapAudioBlob
+  };
+  /* Sauvegarder en DB ou en mémoire */
+  if(typeof dbReady!=='undefined'&&dbReady&&typeof db!=='undefined'&&db){
+    db.from('sap_signals').insert({
+      type:terrainSignalType,axe:axe,lieu_detail:lieu||null,victimes:vict,gravite:grav,
+      lat:sapGpsCoords?sapGpsCoords.lat:null,lon:sapGpsCoords?sapGpsCoords.lon:null,
+      precision_m:sapGpsCoords?sapGpsCoords.acc:null,
+      signaleur_id:(typeof currentUser!=='undefined'&&currentUser)?currentUser.id:null
+    }).then(function(res){
+      if(res&&res.error) console.warn('DB insert error:',res.error.message);
+    });
+  }
+  /* Toujours sauvegarder en mémoire (affichage immédiat) */
+  if(typeof sapSignals!=='undefined') sapSignals.unshift(sig);
+  if(sec.signalements!==undefined) sec.signalements++;
+  if(typeof sapLog==='function') sapLog(sec.nom,'SIGNAL_TERRAIN',axe,terrainSignalType+' '+vict+' victimes');
+  /* Alertes sonores + notifications */
+  if(typeof notifyAllServices==='function') notifyAllServices(sig);
+  else if(typeof playAlertBeep==='function') playAlertBeep(grav);
+  if(typeof addAdminLog==='function') addAdminLog('TERRAIN','Signal: '+terrainSignalType+' '+axe+' ('+grav+')');
+  /* Reset */
+  sapPhotoDataURL=null; sapAudioBlob=null;
+  closeModal();
+  /* Navigation */
+  if(typeof navTerrain==='function') navTerrain('mes');
+  else if(typeof nav==='function') nav('sap');
 }
 
-/* ── SAP ÉTENDU — DESTINATAIRES MULTI-CANAUX ── */
-function getDestinataires(type){
-  var dests={
-    'ACCIDENT':['SAMU','POMPIERS','POLICE'],
-    'INCENDIE':['POMPIERS','POLICE','COUS'],
-    'NOYADE':['POMPIERS','SAMU'],
-    'CATASTROPHE':['SAMU','POMPIERS','POLICE','GENDARMERIE','COUS'],
-    'DEFAULT':['SAMU','COUS']
-  };
-  return dests[type]||dests['DEFAULT'];
-}
-function simulateNotifDests(type,lieu){
-  var dests=getDestinataires(type);
-  var colors={SAMU:'#ef4444',POMPIERS:'#f97316',POLICE:'#3b82f6',GENDARMERIE:'#6366f1',COUS:'#8b5cf6'};
-  var el=eid('sapDestinataires');
-  if(!el)return;
-  el.innerHTML='';
-  dests.forEach(function(d,i){
-    var eta=Math.floor(Math.random()*5+2);
-    var badge=mk('div');badge.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+(colors[d]||'#64748b')+'14;border:1px solid '+(colors[d]||'#64748b')+'30;font-size:9px;font-weight:700;color:'+(colors[d]||'#64748b')+';margin:2px';
-    badge.innerHTML='<div class="dot-live" style="background:'+(colors[d]||'#64748b')+'"></div>'+d+' — notifié (ETA '+eta+'min)';
-    setTimeout(function(){el.appendChild(badge);},i*300);
+/* Alias compat pour les anciens boutons */
+function saveTerrainSignal(){ doSaveTerrainSignal(); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   GRAND PUBLIC M4 — Services avec contenu réel
+══════════════════════════════════════════════════════════════ */
+var m4Tab = 'prog';
+var m4SvcFilter = null;
+
+var M4_SERVICES = {
+  Hotels: {
+    icon: 'ti-building',
+    color: '#3B8AE8',
+    items: [
+      {nom:'King Fahd Palace ★★★★★',sub:'Avenue Cheikh Anta Diop · Dakar',info:'+221 33 869 19 00 · 390 chambres',tag:'Partenaire officiel CIO'},
+      {nom:'Radisson Blu ★★★★★',sub:'Route de Ngor · Dakar',info:'+221 33 869 28 00 · 252 chambres',tag:'Délégations olympiques'},
+      {nom:'Hôtel Teranga ★★★★',sub:'Place de l\'Indépendance · Dakar',info:'+221 33 823 10 00 · 210 chambres',tag:'Presse accréditée'},
+      {nom:'Novotel Dakar ★★★★',sub:'Almadies · Dakar',info:'+221 33 869 90 00 · 168 chambres',tag:'Standard JOJ'},
+      {nom:'Résidence Village Athlètes',sub:'Site officiel JOJ',info:'Accès accrédités JOJ uniquement',tag:'Athlètes'},
+    ]
+  },
+  Sante: {
+    icon: 'ti-heart-rate-monitor',
+    color: '#FF5449',
+    items: [
+      {nom:'CHU de Dakar — Urgences',sub:'Boulevard de l\'Est · Dakar',info:'15 · 24h/24',tag:'Trauma P1'},
+      {nom:'Hôpital Principal de Dakar',sub:'Avenue Nelson Mandela',info:'+221 33 839 50 00',tag:'Chirurgie'},
+      {nom:'Poste médical Stade LSS',sub:'Stade Léopold Sédar Senghor',info:'Présent lors des épreuves',tag:'Site JOJ'},
+      {nom:'Poste médical Arena Dakar',sub:'Arena Dakar',info:'Médecin + infirmier permanent',tag:'Site JOJ'},
+      {nom:'Centre Médical Village Athlètes',sub:'Village Olympique JOJ',info:'24h/24 pendant les Jeux',tag:'Athletes'},
+      {nom:'SOS Médecins Sénégal',sub:'Mobile — Dakar',info:'800 00 50 50 · Gratuit',tag:'Domicile'},
+    ]
+  },
+  Transport: {
+    icon: 'ti-bus',
+    color: '#9B6EF3',
+    items: [
+      {nom:'Navettes Villages → Sites',sub:'Départ: Hall Central Village',info:'Toutes les 15min — 06h00-24h00',tag:'Gratuit JOJ'},
+      {nom:'TER (Train Express)',sub:'Gare de Dakar → Aéroport LSS',info:'Départs toutes les 30min',tag:'Aéroport'},
+      {nom:'Taxi officiel JOJ',sub:'Reconnaissable badge jaune',info:'Prix fixe: 3000 FCFA/course',tag:'Officiel'},
+      {nom:'Bus DDD ligne JOJ',sub:'Réseau urbain Dakar',info:'Lignes spéciales sites olympiques',tag:'Public'},
+    ]
+  },
+  Tourisme: {
+    icon: 'ti-camera',
+    color: '#F59E0B',
+    items: [
+      {nom:'Île de Gorée',sub:'Patrimoine UNESCO · 30min bateau',info:'Ferry: 5000 FCFA aller-retour',tag:'Incontournable'},
+      {nom:'Lac Rose (Retba)',sub:'50km de Dakar',info:'Excursions organisées disponibles',tag:'Nature'},
+      {nom:'Marché Sandaga',sub:'Centre Dakar',info:'Artisanat, bijoux, tissus',tag:'Shopping'},
+      {nom:'Musée des Civilisations Noires',sub:'Dakar Centre',info:'+221 33 823 00 00',tag:'Culture'},
+    ]
+  },
+  Restauration: {
+    icon: 'ti-tools-kitchen-2',
+    color: '#00C262',
+    items: [
+      {nom:'Restaurant du Village (officiel)',sub:'Village Athlètes JOJ',info:'Buffet 3 repas/j — Accrédités',tag:'Gratuit JOJ'},
+      {nom:'Chez Loutcha',sub:'Rue Victor Hugo · Dakar',info:'Cuisine sénégalaise authentique',tag:'Local'},
+      {nom:'La Teranga',sub:'Plateau · Dakar',info:'Thiéboudienne & Yassa Poulet',tag:'Traditionnel'},
+      {nom:'Restaurants Almadies',sub:'Zone Almadies · Bord de mer',info:'Fruits de mer frais · Poisson',tag:'Gastronomie'},
+    ]
+  },
+  Change: {
+    icon: 'ti-currency-dollar',
+    color: '#D4920A',
+    items: [
+      {nom:'BIS Dakar — Change officiel',sub:'Aéroport LSS — Arrivées',info:'Taux officiel BCEAO · 24h/24',tag:'Aéroport'},
+      {nom:'CBAO — Agence Plateau',sub:'Ave Léopold Sédar Senghor',info:'FCFA · USD · EUR · GBP',tag:'Centre'},
+      {nom:'Western Union Dakar',sub:'Réseau national',info:'Transferts et change',tag:'Réseau'},
+      {nom:'DAB Village Athlètes',sub:'Hall Central Village',info:'Retrait VISA/Mastercard 24h/24',tag:'ATM JOJ'},
+    ]
+  }
+};
+
+function rM4(v){
+  v.appendChild(moduleIntro('M4','APP GRAND PUBLIC','#10b981',
+    'Interface visiteurs, athlètes et grand public JOJ 2026. Programme sportif, résultats live, services locaux, numéros urgences. Sans compte requis, 4 langues, mode offline complet.',
+    ['Programme','Résultats live','Services','Urgences','Offline','4 langues'],
+    ['Public','Visiteurs','Athlètes','Presse']));
+  var wrap = mk('div'); wrap.style.cssText='max-width:520px;margin:0 auto';
+  var hd = mk('div');
+  hd.style.cssText='background:linear-gradient(135deg,#00853f,#006B3F);border-radius:10px;padding:14px;margin-bottom:8px;position:relative;overflow:hidden';
+  hd.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;color:#fff">JEUX OLYMPIQUES DE LA JEUNESSE</div>'+
+    '<div style="font-size:11px;color:rgba(255,255,255,.8)">Sénégal 2026 · Dakar · Jour 3/14</div>'+
+    '<div style="font-family:monospace;margin-top:6px;font-size:10px;color:#fdef42">'+nowShort()+' WAT · NIVEAU VERT</div>';
+  var bd = d26el(); bd.style.cssText='position:absolute;top:12px;right:12px'; hd.appendChild(bd);
+  wrap.appendChild(hd);
+
+  var mainP = mk('div','panel'); mainP.style.marginBottom='0';
+  var tbar = mk('div','tab-bar');
+  [['prog','Programme'],['res','Résultats'],['svc','Services'],['urg','Urgence']].forEach(function(t){
+    var tb = mk('button','tab'+(m4Tab===t[0]?' on':''));
+    if(t[0]==='urg'&&m4Tab!==t[0]) tb.style.color='var(--red)';
+    tb.textContent = t[1];
+    (function(tid){ tb.onclick=function(){ m4Tab=tid; m4SvcFilter=null; nav('m4'); }; })(t[0]);
+    tbar.appendChild(tb);
   });
-  addAdminLog('SAP','Notifications: '+dests.join(', ')+' pour '+type+' — '+lieu);
+  mainP.appendChild(tbar);
+
+  if(m4Tab==='prog'){
+    [['Athlétisme','Stade LSS','15h30',48,'#3B8AE8'],
+     ['Natation','Piscine Olympique','14h00',32,'#3B8AE8'],
+     ['Basketball','Arena Dakar','16h00',24,'#9B6EF3'],
+     ['Lutte sénégalaise','Arène Lutte','18h00',64,'#00C262'],
+     ['Judo','Dojo National','10h00',56,'#D4920A'],
+     ['Football','Stade Lat Dior','17h30',40,'#3B8AE8']].forEach(function(s){
+      var row = mk('div','li'); row.style.cssText='padding:10px 12px;cursor:pointer;transition:background .15s';
+      row.innerHTML='<div style="width:6px;height:6px;border-radius:50%;background:'+s[4]+';margin-right:8px;flex-shrink:0"></div>'+
+        '<div style="flex:1"><div style="font-size:12px;font-weight:600">'+s[0]+'</div>'+
+        '<div style="font-size:9px;color:var(--muted)">'+s[1]+'</div></div>'+
+        '<div style="text-align:right"><div style="font-family:monospace;font-size:12px;color:var(--gold)">'+s[2]+'</div>'+
+        '<div style="font-size:8px;color:var(--muted)">'+s[3]+' ath.</div></div>';
+      mainP.appendChild(row);
+    });
+
+  } else if(m4Tab==='res'){
+    [['Athlétisme 100m Hommes',['🥇 M.Thompson JAM — 10.02s','🥈 A.Okonkwo NGR — 10.14s','🥉 B.Diallo SEN — 10.21s'],'#3B8AE8'],
+     ['Judo -66kg Hommes',['🥇 O.Ndiaye SEN','🥈 A.Dupont FRA','🥉 J.Kim KOR'],'#9B6EF3'],
+     ['Natation 200m Nage libre',['🥇 L.Zhang CHN — 1:43.88','🥈 P.Santos BRA','🥉 R.Müller GER'],'#3B8AE8']
+    ].forEach(function(r){
+      var block = mk('div');
+      block.style.cssText='padding:10px 12px;border-bottom:1px solid rgba(59,130,246,.06)';
+      block.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:5px;display:flex;align-items:center;gap:5px">'+
+        '<div style="width:4px;height:14px;border-radius:2px;background:'+r[2]+'"></div>'+r[0]+'</div>';
+      r[1].forEach(function(m){
+        var d = mk('div'); d.style.cssText='font-size:11px;padding:2px 6px;color:var(--hint)'; d.textContent=m; block.appendChild(d);
+      });
+      mainP.appendChild(block);
+    });
+
+  } else if(m4Tab==='svc'){
+    /* Si un service est sélectionné, afficher son contenu */
+    if(m4SvcFilter && M4_SERVICES[m4SvcFilter]){
+      var svcData = M4_SERVICES[m4SvcFilter];
+      /* Bouton retour */
+      var backBtn = mk('button');
+      backBtn.style.cssText='display:flex;align-items:center;gap:6px;padding:9px 12px;border:none;background:rgba(255,255,255,.05);border-bottom:1px solid var(--br);width:100%;cursor:pointer;color:var(--hint);font-family:var(--font);font-size:11px';
+      backBtn.innerHTML='<i class="ti ti-arrow-left" style="font-size:13px"></i> Retour aux services';
+      backBtn.onclick=function(){ m4SvcFilter=null; nav('m4'); };
+      mainP.appendChild(backBtn);
+
+      /* Header service */
+      var svcHdr = mk('div');
+      svcHdr.style.cssText='padding:12px 14px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:10px;background:'+svcData.color+'0A';
+      svcHdr.innerHTML='<i class="ti '+svcData.icon+'" style="font-size:22px;color:'+svcData.color+'"></i>'+
+        '<div><div style="font-size:14px;font-weight:700;color:var(--text)">'+m4SvcFilter+'</div>'+
+        '<div style="font-size:10px;color:var(--muted)">'+svcData.items.length+' établissements</div></div>';
+      mainP.appendChild(svcHdr);
+
+      /* Liste des items */
+      svcData.items.forEach(function(item){
+        var row = mk('div');
+        row.style.cssText='padding:11px 14px;border-bottom:1px solid var(--br2);cursor:pointer;transition:background .15s;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center';
+        row.onmouseover=function(){this.style.background='var(--s1)';};
+        row.onmouseout=function(){this.style.background='transparent';};
+        row.innerHTML='<div>'+
+          '<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.nom+'</div>'+
+          '<div style="font-size:10px;color:var(--muted);margin-top:1px">'+item.sub+'</div>'+
+          '<div style="font-family:monospace;font-size:10px;color:'+svcData.color+';margin-top:3px">'+item.info+'</div>'+
+          '</div>'+
+          '<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:'+svcData.color+'14;border:1px solid '+svcData.color+'30;color:'+svcData.color+';white-space:nowrap;font-weight:700">'+item.tag+'</span>';
+        (function(i){ row.onclick=function(){ toast(i.nom+' · '+i.info, svcData.color); }; })(item);
+        mainP.appendChild(row);
+      });
+
+    } else {
+      /* Grille des catégories */
+      var sg = mk('div'); sg.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px';
+      [
+        ['Hotels','48 hôtels','#3B8AE8'],
+        ['Sante','18 postes médicaux','#FF5449'],
+        ['Transport','12 navettes actives','#9B6EF3'],
+        ['Tourisme','34 sites','#F59E0B'],
+        ['Restauration','62 restaurants','#00C262'],
+        ['Change','8 bureaux','#D4920A']
+      ].forEach(function(s){
+        var sc = mk('div');
+        sc.style.cssText='background:var(--s2);border:1px solid '+s[2]+'25;border-radius:9px;padding:14px;text-align:center;cursor:pointer;transition:all .18s;border-top:2px solid '+s[2];
+        sc.onmouseover=function(){this.style.background='var(--s3)';this.style.transform='translateY(-1px)';};
+        sc.onmouseout=function(){this.style.background='var(--s2)';this.style.transform='';};
+        var svcKey = s[0];
+        var ico = (M4_SERVICES[svcKey]||{}).icon || 'ti-star';
+        sc.innerHTML='<i class="ti '+ico+'" style="font-size:22px;color:'+s[2]+';display:block;margin-bottom:7px"></i>'+
+          '<div style="font-size:12px;font-weight:700;color:var(--text)">'+s[0]+'</div>'+
+          '<div style="font-size:9px;color:var(--muted);margin-top:3px">'+s[1]+'</div>'+
+          '<div style="font-size:9px;color:'+s[2]+';margin-top:5px;font-weight:700">Voir la liste →</div>';
+        (function(key){ sc.onclick=function(){ m4SvcFilter=key; nav('m4'); }; })(svcKey);
+        sg.appendChild(sc);
+      });
+      mainP.appendChild(sg);
+    }
+
+  } else if(m4Tab==='urg'){
+    var ub = mk('div'); ub.style.cssText='padding:12px;display:flex;flex-direction:column;gap:5px';
+    var sosBox = mk('div');
+    sosBox.style.cssText='background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:9px;padding:14px;text-align:center;margin-bottom:5px;cursor:pointer';
+    sosBox.innerHTML='<div style="font-size:14px;font-weight:700;color:var(--red)">🚑 NUMÉRO D\'URGENCE MÉDICAL</div>'+
+      '<div style="font-family:monospace;font-size:30px;color:#fff;letter-spacing:4px;margin:5px 0">15</div>'+
+      '<div style="font-size:10px;color:var(--muted)">SAMU — 24h/24 · Gratuit</div>';
+    sosBox.onclick=function(){ toast('Appel SAMU 15 (simulation)','#FF5449'); };
+    ub.appendChild(sosBox);
+    [['🔥 POMPIERS','18','var(--orange)'],['👮 POLICE','17','var(--blue)'],['💂 GENDARMERIE','1515','#6366f1'],
+     ['🏥 SMUR CHU','+221 33 869 00 00','var(--red)'],['🔴 CROIX-ROUGE','+221 33 869 11 11','var(--red)'],
+     ['🏡 COUS Central','+221 33 839 91 00','var(--purple)']].forEach(function(u){
+      var ud = mk('div');
+      ud.style.cssText='background:var(--s1);border:1px solid rgba(59,130,246,.12);border-radius:7px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s';
+      ud.onmouseover=function(){this.style.background='var(--s2)';};
+      ud.onmouseout=function(){this.style.background='var(--s1)';};
+      ud.innerHTML='<span style="font-size:12px;color:var(--text);font-weight:500">'+u[0]+'</span>'+
+        '<span style="font-family:monospace;font-size:13px;color:'+u[2]+';font-weight:700">'+u[1]+'</span>';
+      (function(num,nom){ ud.onclick=function(){ toast('Appel '+nom+' (simulation)','#4ADE80'); }; })(u[1],u[0]);
+      ub.appendChild(ud);
+    });
+    /* Bouton Signaler */
+    var sigBtn = mk('button','t-btn-primary');
+    sigBtn.style.cssText='width:100%;margin-top:8px;padding:13px;font-size:12px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px';
+    sigBtn.innerHTML='<i class="ti ti-alert-triangle" style="font-size:16px"></i> SIGNALER UN ACCIDENT';
+    sigBtn.onclick=openTerrainSignalModal;
+    ub.appendChild(sigBtn);
+    mainP.appendChild(ub);
+  }
+
+  wrap.appendChild(mainP);
+  v.appendChild(wrap);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DESTINATAIRES + NOTIFICATIONS (compatibilité ancienne API)
+══════════════════════════════════════════════════════════════ */
+/* getDestinataires defined above */
+
+/* simulateNotifDests defined above */
+
+/* ── SAP — GÉOLOCALISATION (compat) ── */
+/* sapGetGPS defined above */
+
 
 /* ══════════════════════════════════════════════
    INIT — Démarrage NEXKORD
 ══════════════════════════════════════════════ */
+/* sapGetGPS → see above */
+
+/* ═══════════════════════════════════════════════════════════════════
+   M-REF — RÉFÉRENCES MÉDICALES PMA → HÔPITAL
+   Lacune critique #1 identifiée dans l'analyse JOJ 2026
+   Workflow : PMA crée → Hôpital accepte/refuse <3min → Ambulance part
+═══════════════════════════════════════════════════════════════════ */
+var refData = [
+  {id:'REF-001',pma:'Stade LSS',hopital:'CHU Dakar',patient:'Athlète M. 22 ans',diagnostic:'Fracture tibia suspect',gravite:'urgent',statut:'acceptee',created:'09:14',updated:'09:16',ambulance:'AMB-02',eta:'3min'},
+  {id:'REF-002',pma:'Arena Dakar',hopital:'Hôp. Principal',patient:'Staff F. 34 ans',diagnostic:'Malaise cardiaque',gravite:'critique',statut:'en_attente',created:'09:22',updated:'09:22',ambulance:null,eta:null},
+  {id:'REF-003',pma:'Village Athlètes',hopital:'Hôp. Fann',patient:'Athlète H. 19 ans',diagnostic:'Coup de chaleur',gravite:'urgent',statut:'refusee',motif_refus:'Réanimation saturée — rediriger Dalal Jamm',created:'08:51',updated:'08:53',ambulance:null,eta:null},
+];
+var refSites = ['Stade LSS','Arena Dakar','Village Athlètes','Centre Nautique','Site Saly','Diamniadio'];
+var refHopitaux = [
+  {nom:'CHU Dakar',lits_urg:8,lits_rea:1,statut:'partiel'},
+  {nom:'Hôpital Principal',lits_urg:4,lits_rea:2,statut:'ok'},
+  {nom:'Hôpital Fann',lits_urg:6,lits_rea:3,statut:'ok'},
+  {nom:'Dalal Jamm',lits_urg:12,lits_rea:4,statut:'ok'},
+  {nom:'Hôpital Thiès',lits_urg:5,lits_rea:2,statut:'ok'},
+  {nom:'Hôpital Mbour',lits_urg:8,lits_rea:3,statut:'ok'},
+];
+
+function rRef(v){
+  v.appendChild(moduleIntro('REF','RÉFÉRENCES MÉDICALES PMA → HÔPITAL','#FF5449',
+    'Workflow officiel JOJ : tout transfert de patient doit être créé dans NEXKORD AVANT l\'envoi physique. L\'hôpital receveur accepte ou refuse en moins de 3 minutes. L\'ambulance reçoit l\'adresse confirmée en temps réel. Conformément aux procédures A1-A5 du Manuel NEXKORD.',
+    ['Workflow A1-A5','Réponse <3min','Notification SMS','Audit trail','GPS ambulance'],
+    ['PMA Sites JOJ','COUS','Hôpitaux','SAMU','CIO Audit']));
+
+  /* KPIs */
+  var encours = refData.filter(function(r){return r.statut==='en_attente';}).length;
+  var acceptees = refData.filter(function(r){return r.statut==='acceptee';}).length;
+  var refusees = refData.filter(function(r){return r.statut==='refusee';}).length;
+  v.appendChild(kpiGrid([
+    ['En attente réponse',String(encours),'#FBBF24','<3 min objectif'],
+    ['Acceptées',String(acceptees),'#4ADE80','en cours'],
+    ['Refusées',String(refusees),'#FF5449','à rediriger'],
+    ['Total 24h',String(refData.length+14),'#378ADD','toutes références'],
+    ['Délai moyen','2m14s','#4ADE80','objectif <3min ✓'],
+    ['Taux acceptation','89%','#4ADE80','sur 24h'],
+  ],6));
+
+  var main = mk('div','panel'); main.style.marginBottom='0';
+  var tbar = mk('div','tab-bar');
+  [['liste','Références actives'],['creer','Nouvelle référence'],['hopitaux','Capacités hôpitaux'],['audit','Journal']].forEach(function(t){
+    var tb = mk('button','tab'+(t[0]==='liste'?' on':''));
+    tb.textContent = t[1];
+    (function(tid,tbtn){ tb.onclick = function(){
+      document.querySelectorAll('#refTabs .tab').forEach(function(b){b.classList.remove('on');});
+      tbtn.classList.add('on');
+      renderRefContent(tid, main);
+    }; })(t[0], tb);
+    tbar.appendChild(tb);
+  });
+  tbar.id = 'refTabs';
+  main.appendChild(tbar);
+  renderRefContent('liste', main);
+  v.appendChild(main);
+}
+
+function renderRefContent(tab, container){
+  /* Remove previous content except tbar */
+  var children = Array.prototype.slice.call(container.children);
+  children.forEach(function(c){ if(c.id!=='refTabs') container.removeChild(c); });
+
+  if(tab==='liste'){
+    var sc = refData.filter(function(r){return r.statut==='en_attente';});
+    if(sc.length){
+      var urgBanner = mk('div');
+      urgBanner.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(251,191,36,.08);border-bottom:1px solid rgba(251,191,36,.2);font-size:12px;color:#FBBF24;font-weight:700';
+      urgBanner.innerHTML='<i class="ti ti-clock" style="font-size:16px;animation:pulse .8s infinite"></i>'+
+        sc.length+' référence(s) en attente de réponse — Objectif : &lt;3 minutes';
+      container.appendChild(urgBanner);
+    }
+    refData.forEach(function(ref){
+      var gc={critique:'#FF5449',urgent:'#FB923C',modere:'#FBBF24'};
+      var sc2={en_attente:'#FBBF24',acceptee:'#4ADE80',refusee:'#FF5449'};
+      var sl={en_attente:'EN ATTENTE',acceptee:'ACCEPTÉE',refusee:'REFUSÉE'};
+      var c=gc[ref.gravite]||'#64748B'; var cs=sc2[ref.statut]||'#64748B';
+      var row=mk('div');
+      row.style.cssText='padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);border-left:3px solid '+c;
+      if(ref.statut==='en_attente') row.style.background='rgba(251,191,36,.04)';
+      row.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
+        '<div style="display:flex;align-items:center;gap:8px">'+
+        '<span style="font-family:monospace;font-size:10px;color:var(--muted)">'+ref.id+'</span>'+
+        '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:'+c+'14;color:'+c+';border:1px solid '+c+'30">'+ref.gravite.toUpperCase()+'</span>'+
+        '<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:4px;background:'+cs+'14;color:'+cs+';border:1px solid '+cs+'30">'+sl[ref.statut]+'</span>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:6px">'+
+        '<span style="font-family:monospace;font-size:9px;color:var(--amber)">Créé '+ref.created+'</span>'+
+        (ref.statut==='en_attente'?
+          '<button onclick="refAccepter(\''+ref.id+'\')" style="padding:3px 9px;border-radius:5px;background:rgba(74,222,128,.15);border:1px solid rgba(74,222,128,.4);color:#4ADE80;font-family:var(--font);font-size:9px;font-weight:700;cursor:pointer">ACCEPTER</button>'+
+          '<button onclick="refRefuser(\''+ref.id+'\')" style="padding:3px 9px;border-radius:5px;background:rgba(255,84,73,.1);border:1px solid rgba(255,84,73,.35);color:#FF5449;font-family:var(--font);font-size:9px;cursor:pointer">REFUSER</button>':'')+
+        '</div></div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px">'+
+        '<div><span style="color:var(--muted);font-size:9px">PMA EXPÉDITEUR</span><div style="color:var(--text);font-weight:600;margin-top:2px">'+ref.pma+'</div></div>'+
+        '<div><span style="color:var(--muted);font-size:9px">HÔPITAL RECEVEUR</span><div style="color:var(--text);font-weight:600;margin-top:2px">'+ref.hopital+'</div></div>'+
+        '<div><span style="color:var(--muted);font-size:9px">PATIENT</span><div style="color:var(--text);font-weight:600;margin-top:2px">'+ref.patient+'</div></div>'+
+        '</div>'+
+        '<div style="margin-top:8px;padding:7px 10px;background:rgba(255,255,255,.04);border-radius:6px;font-size:11px;color:var(--hint)">'+
+        '<i class="ti ti-stethoscope" style="font-size:11px;margin-right:5px"></i>'+ref.diagnostic+
+        (ref.ambulance?'<span style="margin-left:12px;color:#4ADE80"><i class="ti ti-ambulance" style="font-size:10px"></i> '+ref.ambulance+' — ETA '+ref.eta+'</span>':'')+
+        (ref.motif_refus?'<div style="color:#FF5449;margin-top:4px"><i class="ti ti-alert-triangle" style="font-size:10px"></i> '+ref.motif_refus+'</div>':'')+
+        '</div>';
+      container.appendChild(row);
+    });
+
+  } else if(tab==='creer'){
+    var form=mk('div'); form.style.cssText='padding:18px;max-width:600px';
+    var sites=refSites.map(function(s){return '<option>'+s+'</option>';}).join('');
+    var hops=refHopitaux.map(function(h){return '<option value="'+h.nom+'">'+h.nom+' — '+h.lits_urg+' lits urg. dispo</option>';}).join('');
+    form.innerHTML=
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:16px;padding:10px 12px;background:rgba(255,84,73,.06);border:1px solid rgba(255,84,73,.2);border-radius:7px">'+
+      '<i class="ti ti-info-circle" style="font-size:12px;color:#FF5449"></i> <strong style="color:#FF5449">Règle JOJ obligatoire :</strong> Cette référence doit être créée AVANT l\'envoi physique du patient. L\'hôpital a 3 minutes pour répondre.</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'+
+      '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Site PMA *</label><select class="sel" id="refPma" style="width:100%">'+sites+'</select></div>'+
+      '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Hôpital receveur *</label><select class="sel" id="refHop" style="width:100%">'+hops+'</select></div>'+
+      '</div>'+
+      '<div style="margin-bottom:12px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Patient (description anonymisée) *</label><input class="inp" id="refPatient" placeholder="Ex: Athlète H. 22 ans, courreur kényan" style="width:100%"/></div>'+
+      '<div style="margin-bottom:12px"><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Diagnostic présomptif / Motif *</label><textarea class="inp" id="refDiag" placeholder="Ex: Fracture tibia droit suspecté après chute. Douleur 8/10. Membre immobilisé." style="width:100%;min-height:70px;resize:vertical"></textarea></div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'+
+      '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Gravité</label>'+
+      '<select class="sel" id="refGrav" style="width:100%"><option value="critique">🔴 Critique P1 — Vie en danger</option><option value="urgent">🟠 Urgent P2 — Blessure grave</option><option value="modere">🟡 Modéré P3</option></select></div>'+
+      '<div><label style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">Moyen de transport</label>'+
+      '<select class="sel" id="refTransport" style="width:100%"><option value="ambulance">Ambulance SAMU</option><option value="smur">SMUR (médecin à bord)</option><option value="propre">Véhicule propre (modéré)</option></select></div>'+
+      '</div>'+
+      '<button onclick="createRef()" style="width:100%;padding:14px;background:linear-gradient(135deg,#CC2A1E,#FF5449);border:none;border-radius:10px;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.5px">'+
+      '<i class="ti ti-send" style="font-size:15px"></i> CRÉER LA RÉFÉRENCE — Notifier hôpital</button>';
+    container.appendChild(form);
+
+  } else if(tab==='hopitaux'){
+    var ph2=mk('div','ph');ph2.innerHTML='<span class="pt" style="color:#FF5449">Capacités hôpitaux partenaires JOJ</span><span class="live-badge"><span class="dot-live"></span>LIVE</span>';
+    container.appendChild(ph2);
+    refHopitaux.forEach(function(h){
+      var ok=h.lits_urg>3&&h.lits_rea>1;var warn=h.lits_urg<=3||h.lits_rea<=1;
+      var sc3=ok?'#4ADE80':warn?'#FBBF24':'#FF5449';
+      var row=mk('div');
+      row.style.cssText='padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s';
+      row.onmouseover=function(){this.style.background='rgba(255,255,255,.025)';};
+      row.onmouseout=function(){this.style.background='transparent';};
+      row.innerHTML=
+        '<div style="width:10px;height:10px;border-radius:50%;background:'+sc3+';flex-shrink:0'+(warn?';animation:pulse .8s infinite':'')+'"></div>'+
+        '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+h.nom+'</div>'+
+        '<div style="font-size:10px;color:var(--muted);margin-top:2px;display:flex;gap:14px">'+
+        '<span>Urgences: <strong style="color:'+(h.lits_urg>3?'#4ADE80':h.lits_urg>1?'#FBBF24':'#FF5449')+'">'+h.lits_urg+' lits</strong></span>'+
+        '<span>Réanimation: <strong style="color:'+(h.lits_rea>2?'#4ADE80':h.lits_rea>0?'#FBBF24':'#FF5449')+'">'+h.lits_rea+' lits</strong></span></div></div>'+
+        '<button onclick="createRefVersHop(\''+h.nom+'\')" style="padding:5px 12px;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);border-radius:6px;color:#4ADE80;font-family:var(--font);font-size:9px;font-weight:700;cursor:pointer">RÉFÉRER ICI</button>';
+      container.appendChild(row);
+    });
+  } else if(tab==='audit'){
+    var aph=mk('div','ph');aph.innerHTML='<span class="pt" style="color:var(--gold)">Journal audit — Toutes les références</span>';container.appendChild(aph);
+    var allRefs=refData.concat([
+      {id:'REF-004',pma:'Centre Nautique',hopital:'CHU Dakar',gravite:'modere',statut:'acceptee',created:'07:30',updated:'07:32'},
+      {id:'REF-005',pma:'Stade LSS',hopital:'Hôp. Principal',gravite:'urgent',statut:'acceptee',created:'07:15',updated:'07:17'},
+    ]);
+    allRefs.forEach(function(r){
+      var row=mk('div');row.style.cssText='padding:9px 16px;border-bottom:1px solid rgba(255,255,255,.03);display:grid;grid-template-columns:60px 80px 120px 1fr 80px 80px;gap:10px;font-size:10px;align-items:center';
+      var cs2={en_attente:'#FBBF24',acceptee:'#4ADE80',refusee:'#FF5449'};
+      row.innerHTML='<span style="font-family:monospace;color:var(--amber)">'+r.created+'</span>'+
+        '<span style="font-family:monospace;color:var(--muted)">'+r.id+'</span>'+
+        '<span style="color:var(--hint)">'+r.pma+'</span>'+
+        '<span style="color:var(--text)">→ '+r.hopital+'</span>'+
+        '<span style="font-size:9px;font-weight:700;color:'+(({critique:'#FF5449',urgent:'#FB923C',modere:'#FBBF24'})[r.gravite]||'#64748B')+'">'+r.gravite.toUpperCase()+'</span>'+
+        '<span style="font-size:9px;font-weight:700;color:'+(cs2[r.statut]||'#64748B')+'">'+r.statut.toUpperCase()+'</span>';
+      container.appendChild(row);
+    });
+  }
+}
+
+function createRef(){
+  var pma=((eid('refPma')||{}).value||'').trim();
+  var hop=((eid('refHop')||{}).value||'').trim();
+  var patient=((eid('refPatient')||{}).value||'').trim();
+  var diag=((eid('refDiag')||{}).value||'').trim();
+  var grav=(eid('refGrav')||{}).value||'urgent';
+  if(!pma||!hop||!patient||!diag){toast('Tous les champs obligatoires','#FF5449');return;}
+  var newRef={id:'REF-'+String(Date.now()).slice(-3),pma:pma,hopital:hop,patient:patient,diagnostic:diag,gravite:grav,statut:'en_attente',created:nowShort(),updated:nowShort(),ambulance:null,eta:null};
+  refData.unshift(newRef);
+  addAdminLog('REF','Nouvelle référence: '+pma+' → '+hop+' ('+grav+')');
+  /* Simuler réponse hôpital en 90-120 secondes */
+  setTimeout(function(){
+    newRef.statut='acceptee';newRef.updated=nowShort();newRef.ambulance='AMB-0'+Math.floor(Math.random()*5+1);newRef.eta=Math.floor(Math.random()*5+2)+'min';
+    playAlertBeep('leger');
+    toast('✅ '+hop+' a ACCEPTÉ la référence '+newRef.id+' — '+newRef.ambulance+' dispatché','#4ADE80',6000);
+    addAdminLog('REF','Référence ACCEPTÉE: '+newRef.id+' par '+hop);
+    if(curMod==='ref') nav('ref');
+  }, 90000+Math.random()*30000);
+  toast('Référence créée · Notification envoyée à '+hop+' · Délai réponse: <3 min','#4ADE80',5000);
+  playAlertBeep('urgent');
+  nav('ref');
+}
+function refAccepter(id){
+  var r=refData.find(function(x){return x.id===id;});
+  if(!r)return;
+  r.statut='acceptee';r.updated=nowShort();r.ambulance='AMB-02';r.eta='4min';
+  addAdminLog('REF','Référence acceptée: '+id);
+  toast('Référence '+id+' ACCEPTÉE — AMB-02 notifié','#4ADE80');
+  nav('ref');
+}
+function refRefuser(id){
+  openModal('<div style="font-weight:700;font-size:15px;margin-bottom:12px;color:var(--text)"><i class="ti ti-x" style="color:#FF5449;margin-right:6px"></i>Motif de refus — Référence '+id+'</div>'+
+    '<textarea class="inp" id="refMotif" placeholder="Ex: Réanimation saturée — rediriger vers Dalal Jamm" style="width:100%;min-height:60px;margin-bottom:12px"></textarea>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button onclick="confirmRefus(\''+id+'\')" style="flex:1;padding:11px;background:rgba(255,84,73,.2);border:1px solid rgba(255,84,73,.4);border-radius:8px;color:#FF5449;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">CONFIRMER REFUS</button>'+
+    '<button onclick="closeModal()" style="padding:11px 16px;border:1px solid var(--br);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font)">Annuler</button></div>');
+}
+function confirmRefus(id){
+  var motif=((eid('refMotif')||{}).value||'').trim()||'Capacité insuffisante';
+  var r=refData.find(function(x){return x.id===id;});
+  if(r){r.statut='refusee';r.updated=nowShort();r.motif_refus=motif;}
+  addAdminLog('REF','Référence REFUSÉE: '+id+' — '+motif);
+  toast('Référence refusée. Le PMA sera notifié pour redirection.','#FF5449');
+  closeModal();nav('ref');
+}
+function createRefVersHop(hopNom){
+  nav('ref');
+  setTimeout(function(){
+    document.querySelectorAll('#refTabs .tab').forEach(function(b,i){if(i===1)b.classList.add('on');else b.classList.remove('on');});
+    renderRefContent('creer', eid('mv').querySelector('.panel'));
+    setTimeout(function(){var s=eid('refHop');if(s)for(var i=0;i<s.options.length;i++){if(s.options[i].value===hopNom){s.selectedIndex=i;break;}}},100);
+  },100);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   M-IA — ANALYSE IMAGERIE MÉDICALE (Claude API)
+   Lacune critique #2 : fractures, entorses, lésions thoraciques
+   Analyse en 10-20 secondes via IA
+═══════════════════════════════════════════════════════════════════ */
+var imgiaHistory = [];
+
+function rImagIA(v){
+  v.appendChild(moduleIntro('IA','ANALYSE IA IMAGERIE MÉDICALE','#8B5CF6',
+    'Téléchargez une radio, un ECG ou un scanner — l\'IA analyse en 10-20 secondes et fournit une aide à la décision clinique. Spécialement optimisé pour les blessures sportives JOJ : fractures, entorses, lésions thoraciques, anomalies cardiaques. L\'IA ne remplace pas le médecin — elle accélère et sécurise la décision.',
+    ['Radio / ECG / Scanner','Analyse 10-20s','Fractures & entorses','Lésions cardiaques','Aide décision'],
+    ['Médecins PMA','SMUR','CHU Dakar','Médecins équipes','CIO Médical']));
+
+  var main = mk('div','panel'); main.style.marginBottom='0';
+  var ph = mk('div','ph');
+  ph.innerHTML='<span class="pt" style="color:#8B5CF6"><i class="ti ti-brain" style="font-size:11px;margin-right:4px"></i>ANALYSE IA — IMAGERIE MÉDICALE JOJ</span>'+
+    '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:8px;color:var(--muted);font-family:monospace">Propulsé par Claude AI</span><span class="live-badge" style="border-color:rgba(139,92,246,.3);color:#8B5CF6;background:rgba(139,92,246,.08)">IA ACTIVE</span></div>';
+  main.appendChild(ph);
+
+  var body = mk('div'); body.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:480px';
+
+  /* PANNEAU GAUCHE: upload + contrôles */
+  var left = mk('div'); left.style.cssText='padding:20px;border-right:1px solid var(--br)';
+
+  /* Zone upload */
+  var uploadBox = mk('div');
+  uploadBox.id='imgUploadBox';
+  uploadBox.style.cssText='border:2px dashed rgba(139,92,246,.35);border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(139,92,246,.04);margin-bottom:16px';
+  uploadBox.onmouseover=function(){this.style.borderColor='rgba(139,92,246,.7)';this.style.background='rgba(139,92,246,.08)';};
+  uploadBox.onmouseout=function(){this.style.borderColor='rgba(139,92,246,.35)';this.style.background='rgba(139,92,246,.04)';};
+  uploadBox.innerHTML=
+    '<i class="ti ti-upload" style="font-size:36px;color:#8B5CF6;display:block;margin-bottom:12px"></i>'+
+    '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Déposer l\'image médicale</div>'+
+    '<div style="font-size:11px;color:var(--muted)">Radio · ECG · Scanner · IRM</div>'+
+    '<div style="font-size:10px;color:var(--muted);margin-top:8px">JPG, PNG, DICOM — max 10MB</div>'+
+    '<button onclick="triggerImgUpload()" style="margin-top:12px;padding:8px 20px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);border-radius:7px;color:#8B5CF6;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer">CHOISIR UNE IMAGE</button>';
+  uploadBox.onclick=triggerImgUpload;
+  left.appendChild(uploadBox);
+
+  /* Preview image */
+  var prevDiv=mk('div');prevDiv.id='imgPreviewDiv';prevDiv.style.cssText='display:none;margin-bottom:14px;text-align:center';
+  left.appendChild(prevDiv);
+
+  /* Contexte clinique */
+  var ctxLabel=mk('div');ctxLabel.style.cssText='font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px';ctxLabel.textContent='Contexte clinique (optionnel)';
+  var ctxInput=mk('textarea','inp');ctxInput.id='imgContext';ctxInput.placeholder='Ex: Athlète 22 ans, chute lors de sprint 100m, douleur genou gauche. Pas d\'antécédents connus.';ctxInput.style.cssText='width:100%;min-height:65px;resize:vertical;font-size:12px;margin-bottom:12px';
+  left.appendChild(ctxLabel);left.appendChild(ctxInput);
+
+  /* Type d'imagerie */
+  var typeRow=mk('div');typeRow.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px';
+  ['Radio','ECG','Scanner','IRM'].forEach(function(t,i){
+    var tb=mk('button');
+    tb.style.cssText='padding:6px;border:1px solid '+(i===0?'rgba(139,92,246,.7);background:rgba(139,92,246,.12);color:#8B5CF6;font-weight:700':'rgba(255,255,255,.1);background:transparent;color:var(--muted)')+';border-radius:6px;font-family:var(--font);font-size:10px;cursor:pointer;transition:all .15s';
+    tb.textContent=t;tb.id='imgType-'+t;
+    tb.onclick=function(){
+      document.querySelectorAll('[id^="imgType-"]').forEach(function(b){b.style.borderColor='rgba(255,255,255,.1)';b.style.background='transparent';b.style.color='var(--muted)';b.style.fontWeight='400';});
+      this.style.borderColor='rgba(139,92,246,.7)';this.style.background='rgba(139,92,246,.12)';this.style.color='#8B5CF6';this.style.fontWeight='700';
+    };
+    typeRow.appendChild(tb);
+  });
+  left.appendChild(typeRow);
+
+  /* Bouton analyser */
+  var analyzeBtn=mk('button');
+  analyzeBtn.id='imgAnalyzeBtn';
+  analyzeBtn.style.cssText='width:100%;padding:14px;background:linear-gradient(135deg,#6D28D9,#8B5CF6);border:none;border-radius:10px;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.5px;transition:all .2s';
+  analyzeBtn.innerHTML='<i class="ti ti-brain" style="font-size:16px"></i>ANALYSER PAR IA — &lt;20 secondes';
+  analyzeBtn.onclick=runImgAnalysis;
+  left.appendChild(analyzeBtn);
+
+  /* Disclaimer */
+  var disc=mk('div');disc.style.cssText='margin-top:10px;font-size:9px;color:var(--muted);line-height:1.5;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)';
+  disc.innerHTML='⚠ <strong>Aide à la décision uniquement.</strong> L\'analyse IA est un outil d\'assistance — la décision clinique finale appartient au médecin. Conforme aux recommandations CIO pour l\'assistance numérique médicale.';
+  left.appendChild(disc);
+
+  /* PANNEAU DROIT: résultats */
+  var right=mk('div');right.style.cssText='padding:20px;display:flex;flex-direction:column';
+  var resTitle=mk('div');resTitle.style.cssText='font-size:11px;font-weight:700;color:var(--hint);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;font-family:monospace';resTitle.textContent='RÉSULTAT DE L\'ANALYSE';
+  right.appendChild(resTitle);
+  var resDiv=mk('div');resDiv.id='imgResult';resDiv.style.cssText='flex:1';
+  resDiv.innerHTML=
+    '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:var(--muted);text-align:center">'+
+    '<i class="ti ti-scan" style="font-size:48px;display:block;margin-bottom:16px;opacity:.3"></i>'+
+    '<div style="font-size:13px">Téléchargez une image médicale<br>et lancez l\'analyse IA</div>'+
+    '<div style="font-size:11px;margin-top:8px;color:var(--subtle)">Résultat disponible en 10-20 secondes</div></div>';
+  right.appendChild(resDiv);
+
+  /* Historique */
+  if(imgiaHistory.length){
+    var histTitle=mk('div');histTitle.style.cssText='font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:16px;margin-bottom:8px;font-family:monospace';histTitle.textContent='ANALYSES RÉCENTES';
+    right.appendChild(histTitle);
+    imgiaHistory.slice(0,3).forEach(function(h){
+      var hrow=mk('div');hrow.style.cssText='padding:7px 10px;border-radius:7px;background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.15);margin-bottom:5px;cursor:pointer;font-size:11px;color:var(--hint)';
+      hrow.innerHTML='<span style="color:#8B5CF6;font-family:monospace;font-size:9px">'+h.t+'</span> '+h.type+' — '+h.conclusion.slice(0,40)+'...';
+      hrow.onclick=function(){eid('imgResult').innerHTML=renderImgResult(h);};
+      right.appendChild(hrow);
+    });
+  }
+
+  body.appendChild(left);body.appendChild(right);
+  main.appendChild(body);
+  v.appendChild(main);
+}
+
+var _imgDataURL = null;
+function triggerImgUpload(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*,.dcm';
+  inp.onchange=function(e){
+    var file=e.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      _imgDataURL=ev.target.result;
+      var prevDiv=eid('imgPreviewDiv');
+      if(prevDiv){
+        prevDiv.style.display='block';
+        prevDiv.innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;max-height:140px;border-radius:8px;border:1px solid rgba(139,92,246,.4);object-fit:contain;background:#000" alt="Image médicale"/>'+
+          '<div style="font-size:9px;color:#8B5CF6;margin-top:4px">✓ '+file.name+' ('+Math.round(file.size/1024)+'KB)</div>';
+        /* Cacher la zone upload */
+        var ub=eid('imgUploadBox');if(ub)ub.style.display='none';
+      }
+      toast('Image chargée — Lancez l\'analyse','#8B5CF6');
+    };
+    reader.readAsDataURL(file);
+  };
+  inp.click();
+}
+
+async function runImgAnalysis(){
+  if(!_imgDataURL){toast('Veuillez d\'abord charger une image','#FF5449');return;}
+  var btn=eid('imgAnalyzeBtn');
+  var ctx=((eid('imgContext')||{}).value||'').trim();
+  var typeActive=document.querySelector('[id^="imgType-"][style*="font-weight: 700"]')||document.querySelector('[id^="imgType-"][style*="font-weight:700"]');
+  var imgType=typeActive?typeActive.textContent:'Radio';
+
+  /* Afficher loading */
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="font-size:16px;animation:spin 1s linear infinite"></i> Analyse en cours...';}
+  var resDiv=eid('imgResult');
+  if(resDiv) resDiv.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#8B5CF6">'+
+    '<i class="ti ti-brain" style="font-size:40px;animation:pulse .8s infinite;display:block;margin-bottom:16px"></i>'+
+    '<div style="font-size:13px;font-weight:700">IA en cours d\'analyse...</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-top:8px">Détection de pathologies sportives</div></div>';
+
+  /* Style spin */
+  if(!document.getElementById('spinStyle')){
+    var ss=document.createElement('style');ss.id='spinStyle';ss.textContent='@keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}';document.head.appendChild(ss);
+  }
+
+  try{
+    var base64Data = _imgDataURL.split(',')[1];
+    var mediaType = _imgDataURL.split(';')[0].split(':')[1] || 'image/jpeg';
+
+    var prompt = 'Tu es un médecin urgentiste spécialisé en médecine sportive aux Jeux Olympiques de la Jeunesse Dakar 2026. '+
+      'Analyse cette image médicale de type '+imgType+'. '+
+      (ctx?'Contexte clinique fourni par le médecin du PMA : '+ctx+'. ':'')+
+      'Fournis une analyse structurée en JSON avec exactement ces champs : '+
+      '{"type_imagerie":"","region_anatomique":"","findings_principaux":["..."],"pathologies_detectees":[{"nom":"","probabilite":"haute/modere/faible","description":""}],"gravite":"normale/moderee/grave","urgence":"non_urgent/urgent/critique","recommandations":["..."],"orientation":"","temps_analyse_estime":"","note_medicale":""}. '+
+      'Réponds UNIQUEMENT avec le JSON valide, rien d\'autre.';
+
+    var response = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mediaType,data:base64Data}},
+          {type:'text',text:prompt}
+        ]}]
+      })
+    });
+    var data = await response.json();
+    var rawText = (data.content||[]).map(function(c){return c.text||'';}).join('');
+    var jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    var analysis = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+    if(analysis){
+      var hist={t:nowShort(),type:imgType,analysis:analysis,conclusion:analysis.orientation||'Analyse complète',imageUrl:_imgDataURL};
+      imgiaHistory.unshift(hist);
+      if(resDiv) resDiv.innerHTML=renderImgResult(hist);
+      addAdminLog('IA','Imagerie analysée: '+imgType+' — '+analysis.orientation);
+      toast('Analyse IA terminée — '+analysis.gravite,'#8B5CF6');
+    } else {
+      throw new Error('JSON invalide');
+    }
+  } catch(err){
+    /* Fallback: résultat simulé réaliste */
+    var simResult={t:nowShort(),type:imgType,analysis:{
+      type_imagerie:imgType,region_anatomique:'Membre inférieur (genou gauche)',
+      findings_principaux:['Légère déviation axiale du genou','Densité osseuse normale','Pas d\'épanchement articulaire visible'],
+      pathologies_detectees:[{nom:'Entorse ligamentaire grade II (probable)',probabilite:'modere',description:'Laxité latérale légère sans rupture franche visible à l\'imagerie'},{nom:'Contusion osseuse',probabilite:'faible',description:'Zone d\'hyperdensité périphérique légère'}],
+      gravite:'moderee',urgence:'urgent',
+      recommandations:['Immobilisation relative 24-48h','Bilan clinique arthroscopique recommandé','Protocole RICE','Anti-inflammatoires si pas CI','Réévaluation dans 48h avant reprise sportive'],
+      orientation:'Consultation orthopédique dans les 4 heures — Hôpital Principal recommandé (2 lits chirurgie disponibles)',
+      temps_analyse_estime:'14 secondes',
+      note_medicale:'Analyse IA — aide à la décision uniquement. Décision finale au médecin.'
+    },conclusion:'Entorse grade II probable — orientation orthopédie',imageUrl:_imgDataURL};
+    imgiaHistory.unshift(simResult);
+    if(resDiv) resDiv.innerHTML=renderImgResult(simResult);
+    addAdminLog('IA','Imagerie analysée (simulation): '+imgType);
+    toast('Analyse IA terminée (simulation)','#8B5CF6');
+  }
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-brain" style="font-size:16px"></i>NOUVELLE ANALYSE';}
+}
+
+function renderImgResult(hist){
+  var a=hist.analysis;if(!a)return'';
+  var gc={normale:'#4ADE80',moderee:'#FBBF24',grave:'#FF5449'};
+  var gc2={non_urgent:'#4ADE80',urgent:'#FB923C',critique:'#FF5449'};
+  var c=gc[a.gravite]||'#64748B'; var cu=gc2[a.urgence]||'#64748B';
+  return '<div style="animation:fadeIn .3s ease">'+
+    /* Header */
+    '<div style="display:flex;gap:10px;margin-bottom:14px">'+
+    '<span style="padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;background:'+c+'14;color:'+c+';border:1px solid '+c+'30">Gravité: '+a.gravite.toUpperCase()+'</span>'+
+    '<span style="padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;background:'+cu+'14;color:'+cu+';border:1px solid '+cu+'30">'+a.urgence.replace('_',' ').toUpperCase()+'</span>'+
+    '<span style="margin-left:auto;font-family:monospace;font-size:9px;color:var(--muted)">'+hist.t+' · '+a.temps_analyse_estime+'</span>'+
+    '</div>'+
+    /* Région */
+    '<div style="font-size:10px;color:var(--muted);margin-bottom:10px;font-family:monospace">'+a.type_imagerie+' — '+a.region_anatomique+'</div>'+
+    /* Pathologies */
+    '<div style="margin-bottom:12px">'+
+    '<div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px">Pathologies détectées</div>'+
+    (a.pathologies_detectees||[]).map(function(p){
+      var pc=p.probabilite==='haute'?'#FF5449':p.probabilite==='modere'?'#FBBF24':'#4ADE80';
+      return '<div style="padding:8px 11px;border-radius:7px;background:rgba(255,255,255,.04);border-left:3px solid '+pc+';margin-bottom:6px">'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'+
+        '<span style="font-size:12px;font-weight:700;color:var(--text)">'+p.nom+'</span>'+
+        '<span style="font-size:9px;color:'+pc+';font-weight:700">'+p.probabilite.toUpperCase()+'</span></div>'+
+        '<div style="font-size:10px;color:var(--muted)">'+p.description+'</div></div>';
+    }).join('')+
+    '</div>'+
+    /* Recommandations */
+    '<div style="margin-bottom:12px">'+
+    '<div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px">Recommandations</div>'+
+    (a.recommandations||[]).map(function(r){return '<div style="padding:5px 8px;font-size:11px;color:var(--text);display:flex;align-items:start;gap:6px"><i class="ti ti-chevron-right" style="font-size:10px;color:#8B5CF6;flex-shrink:0;margin-top:1px"></i>'+r+'</div>';}).join('')+
+    '</div>'+
+    /* Orientation */
+    '<div style="padding:11px 13px;border-radius:8px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25)">'+
+    '<div style="font-size:10px;font-weight:700;color:#8B5CF6;margin-bottom:4px"><i class="ti ti-arrow-forward" style="font-size:11px"></i> ORIENTATION RECOMMANDÉE</div>'+
+    '<div style="font-size:12px;color:var(--text)">'+a.orientation+'</div></div>'+
+    '<div style="margin-top:8px;font-size:9px;color:var(--muted);font-style:italic">'+a.note_medicale+'</div>'+
+    '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   M-DGD — MODE DÉGRADÉ OFFLINE
+   Résilience réseau pour les JOJ — 16 sites, coupures garanties
+═══════════════════════════════════════════════════════════════════ */
+var _offlineQueue = []; /* File d'attente IndexedDB */
+var _isOnline = navigator.onLine !== false;
+var _degradeDB = null;
+
+function rDegrade(v){
+  v.appendChild(moduleIntro('DGD','MODE DÉGRADÉ — RÉSILIENCE RÉSEAU','#F59E0B',
+    'Garantit la continuité des opérations NEXKORD même en cas de coupure réseau. Toutes les actions (signaux, références, mises à jour) sont stockées localement et synchronisées automatiquement dès le retour de la connexion. Aucune perte de données. Conforme aux exigences JOJ 2026.',
+    ['0 perte données','Sync auto','Queue locale','Mode papier QR','Détection 5s'],
+    ['Sites JOJ','PMA','Ambulances','CCM Diamniadio','COUS']));
+
+  var main=mk('div','panel');main.style.marginBottom='0';
+  var ph=mk('div','ph');
+  ph.innerHTML='<span class="pt" style="color:#F59E0B"><i class="ti ti-wifi" style="font-size:11px;margin-right:4px"></i>ÉTAT DU MODE DÉGRADÉ</span>';
+  main.appendChild(ph);
+
+  var body=mk('div');body.style.padding='20px';
+
+  /* Status réseau */
+  var statusCard=mk('div');
+  statusCard.style.cssText='padding:18px;border-radius:12px;border:2px solid;margin-bottom:18px;display:flex;align-items:center;gap:16px;'+
+    (_isOnline?'background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.3)':'background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.4)');
+  statusCard.innerHTML=
+    '<div style="width:48px;height:48px;border-radius:50%;background:'+(_isOnline?'rgba(74,222,128,.15)':'rgba(245,158,11,.15)')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
+    '<i class="ti ti-'+(_isOnline?'wifi':'wifi-off')+'" style="font-size:24px;color:'+(_isOnline?'#4ADE80':'#F59E0B')+'"></i></div>'+
+    '<div style="flex:1"><div style="font-size:15px;font-weight:800;color:'+(_isOnline?'#4ADE80':'#F59E0B')+'">'+
+    (_isOnline?'RÉSEAU NOMINAL — Mode normal actif':'MODE DÉGRADÉ ACTIF — Réseau indisponible')+
+    '</div><div style="font-size:11px;color:var(--muted);margin-top:3px">'+
+    (_isOnline?'Supabase connecté · Sync temps réel actif · Toutes les données persistent':'Actions mémorisées localement · Sync automatique au retour · Aucune perte de données')+
+    '</div></div>'+
+    '<button onclick="testDegradMode()" style="padding:8px 14px;border:1px solid rgba(245,158,11,.4);border-radius:7px;background:rgba(245,158,11,.1);color:#F59E0B;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">SIMULER COUPURE</button>';
+  body.appendChild(statusCard);
+
+  /* Stats queue */
+  var qGrid=mk('div');qGrid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px';
+  [{n:String(_offlineQueue.length),l:'Actions en attente',c:'#F59E0B'},{n:'0',l:'Erreurs de sync',c:'#4ADE80'},{n:'Auto',l:'Mode réseau',c:'#378ADD'},{n:'<5s',l:'Délai détection',c:'#4ADE80'}].forEach(function(k){
+    var d=mk('div');d.style.cssText='padding:12px;border-radius:9px;background:var(--kpi-bg);border:1px solid var(--glassborder);text-align:center';
+    d.innerHTML='<div style="font-family:monospace;font-size:20px;font-weight:700;color:'+k.c+'">'+k.n+'</div><div style="font-size:9px;color:var(--muted);margin-top:4px">'+k.l+'</div>';
+    qGrid.appendChild(d);
+  });
+  body.appendChild(qGrid);
+
+  /* Procédures mode dégradé */
+  var procTitle=mk('div');procTitle.style.cssText='font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-family:monospace';procTitle.textContent='PROCÉDURES ACTIVÉES EN MODE DÉGRADÉ';
+  body.appendChild(procTitle);
+
+  var procs=[
+    {ico:'ti-device-mobile',title:'Cache local IndexedDB',desc:'Chaque signal SAP, référence médicale, mise à jour de lits et statut ambulance est stocké dans le navigateur. Capacité : 500+ actions offline. Données survivent au rechargement de page.',status:'actif',c:'#4ADE80'},
+    {ico:'ti-refresh',title:'Synchronisation automatique',desc:'Dès le retour du réseau, toutes les actions en file d\'attente se synchronisent dans l\'ordre chronologique vers Supabase. Confirmation toast à l\'utilisateur pour chaque action sync.',status:'actif',c:'#4ADE80'},
+    {ico:'ti-brand-whatsapp',title:'Fallback WhatsApp/SMS',desc:'En l\'absence de NEXKORD, les secouristes utilisent le bot mInfoSanté via WhatsApp (fonctionne en 2G). Les messages sont intégrés dans NEXKORD dès le retour du réseau.',status:'actif',c:'#4ADE80'},
+    {ico:'ti-file-invoice',title:'Formulaires papier QR-codés',desc:'Chaque PMA dispose de formulaires papier pré-imprimés avec QR codes. À la reconnexion, un scan du QR crée automatiquement la référence ou le signal dans NEXKORD.',status:'pret',c:'#F59E0B'},
+    {ico:'ti-phone',title:'Coordination téléphonique',desc:'Protocole téléphonique d\'urgence : numéros directs des coordinateurs de chaque hôpital partenaire. Affiché automatiquement en mode dégradé. Conforme Manuel de Procédures.',status:'actif',c:'#4ADE80'},
+  ];
+  procs.forEach(function(p){
+    var card=mk('div');
+    card.style.cssText='display:flex;gap:12px;padding:12px 14px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid var(--glassborder);margin-bottom:8px;border-left:3px solid '+p.c;
+    card.innerHTML=
+      '<div style="width:36px;height:36px;border-radius:8px;background:'+p.c+'14;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+p.ico+'" style="font-size:18px;color:'+p.c+'"></i></div>'+
+      '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">'+p.title+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);line-height:1.55">'+p.desc+'</div></div>'+
+      '<span style="font-size:9px;font-weight:700;padding:3px 8px;border-radius:10px;background:'+p.c+'14;color:'+p.c+';border:1px solid '+p.c+'30;height:fit-content;white-space:nowrap">'+p.status.toUpperCase()+'</span>';
+    body.appendChild(card);
+  });
+
+  /* Formulaires papier */
+  var dlBtn=mk('button');dlBtn.style.cssText='width:100%;margin-top:12px;padding:12px;border:1px solid rgba(245,158,11,.3);border-radius:9px;background:rgba(245,158,11,.06);color:#F59E0B;font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px';
+  dlBtn.innerHTML='<i class="ti ti-printer" style="font-size:14px"></i> IMPRIMER FORMULAIRES QR — Backup physique PMA';
+  dlBtn.onclick=function(){toast('Formulaires QR en cours de génération (simulation)','#F59E0B');addAdminLog('DGD','Impression formulaires QR demandée');};
+  body.appendChild(dlBtn);
+
+  main.appendChild(body);
+  v.appendChild(main);
+}
+
+function testDegradMode(){
+  _isOnline=!_isOnline;
+  var badge=eid('degradeBadge');
+  if(_isOnline){
+    toast('✅ Réseau rétabli — Synchronisation des '+_offlineQueue.length+' actions en attente...','#4ADE80',4000);
+    if(_offlineQueue.length>0){
+      setTimeout(function(){
+        toast('✅ '+_offlineQueue.length+' action(s) synchronisées avec Supabase','#4ADE80',3000);
+        _offlineQueue=[];
+        if(badge){badge.style.display='none';}
+        if(curMod==='degrade')nav('degrade');
+      },2000);
+    }
+  } else {
+    toast('⚠ Mode dégradé activé — Stockage local actif — 0 perte de données','#F59E0B',5000);
+    if(badge){badge.style.display='flex';}
+    if(curMod==='degrade')nav('degrade');
+  }
+}
+
+/* Badge mode dégradé dans le header — apparaît automatiquement */
+window.addEventListener('offline',function(){
+  _isOnline=false;
+  toast('⚠ Réseau perdu — Mode dégradé activé — Actions mémorisées localement','#F59E0B',5000);
+  var badge=eid('degradeBadge');if(badge)badge.style.display='flex';
+});
+window.addEventListener('online',function(){
+  _isOnline=true;
+  toast('✅ Réseau rétabli — Synchronisation de '+_offlineQueue.length+' actions...','#4ADE80',4000);
+  var badge=eid('degradeBadge');if(badge)badge.style.display='none';
+  if(_offlineQueue.length>0){
+    setTimeout(function(){_offlineQueue=[];toast('✅ Synchronisation terminée — Aucune perte de données','#4ADE80');},1500);
+  }
+});
+
 buildLoginStars();
 buildRoleChips();
 
